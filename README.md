@@ -3,7 +3,7 @@
 
 Este proyecto consiste en una herramienta diseñada para leer la memoria RAM física directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica.
 
-## Instalar librerias de desarrollo del kenrel
+## Instalar librerias
 Instalar las herramientas esenciales y los encabezados del kernel actual: 
 ```bash
 $ sudo apt update && sudo apt install build-essential linux-headers-$(uname -r)
@@ -20,7 +20,7 @@ Se incluye un Makefile que automatiza la compilación tanto del módulo del kern
 
 ## Ejecutar el programa
 
-### Cargar nodulo en el Kernel:
+### Cargar modulo en el Kernel:
 
 ```bash
 $ sudo insmod mmap_kernel.ko
