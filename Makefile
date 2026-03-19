@@ -7,7 +7,7 @@ mmap_kernel:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 mmap_user: mmap_user.c
-	gcc -o mmap_user mmap_user.c -lglfw -lGL -lm
+	gcc -o mmap_user mmap_user.c -lGL -lGLEW -lglfw -lm
 
 full_men: full_mem.c
 	gcc -o full_mem full_mem.c

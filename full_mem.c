@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #define BLOCK_SIZE 100 * 1024 * 1024 // Bloques de 100 MB
+#define MAX_ALLOCATE 12884901888  // 12GB
 
 int main() {
     size_t total_allocated = 0;
@@ -13,7 +14,7 @@ int main() {
     printf("Iniciando consumo de RAM...\n");
     // LLena memoria hasta fallar.
     // Tambien se puede limitar el tamaño de memoria a llenar
-    while(1){
+    while(total_allocated < MAX_ALLOCATE){
         int *ptr = malloc(BLOCK_SIZE);
 
         if (ptr == NULL) {

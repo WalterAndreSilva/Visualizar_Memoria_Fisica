@@ -8,12 +8,14 @@ Instalar las herramientas esenciales y los encabezados del kernel actual:
 ```bash
 $ sudo apt update && sudo apt install build-essential linux-headers-$(uname -r)
 ```
-Instalar librerias de OpenGL
+Instalar librerias de OpenGL para poder compilar la parte grafica. 
 ```bash
 $ sudo apt-get install libglfw3 libglfw3-dev
 ```
-Son necesarias para poder compilar la parte grafica. 
-
+Instalar GLEW para ejecutar shader en la tarjeta grafica.
+```bash
+$ sudo apt-get install libglew-dev 
+```
 ## Compilacion 
 
 Se incluye un Makefile que automatiza la compilación tanto del módulo del kernel como de las herramientas de usuario. Esto abarca la aplicación gráfica de visualización y un programa de prueba diseñado para llenar la memoria con datos aleatorios.

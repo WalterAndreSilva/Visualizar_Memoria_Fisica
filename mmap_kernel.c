@@ -11,18 +11,18 @@
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
-#include <linux/atomic.h> // Necesario para el conteo de referencias
+#include <linux/atomic.h>
 
 #define RAM_SIZE_GB 16ULL
 #define MAX_PHYS_ADDR (RAM_SIZE_GB * 1024 * 1024 * 1024)
 #define MAX_PFN (MAX_PHYS_ADDR >> PAGE_SHIFT)
 
+// (16*1024*1024*1024)/4096 = 2048*2048 = 4194304
+#define MAP_SIZE (2048 * 2048) // 4.19 MB exactos para nuestra textura
+#define PAGES_NUMBER (MAP_SIZE / PAGE_SIZE) // Exactamente 1024 páginas
+
 static void **ram_pointers;
 static unsigned long valid_pages_count = 0;
-
-#define PAGES_NUMBER 128     
-#define EXP_RESERVE 7        
-#define BUFFER_SIZE 480000
 
 static const char *filename = "lkmc_mmap";
 
@@ -38,8 +38,9 @@ static void mmap_info_put(struct mmap_info *info)
 {
     // Solo liberamos cuando la referencia llega a 0
     if (atomic_dec_and_test(&info->refcnt)) {
-        if (info->data)
-            free_pages((unsigned long)info->data, EXP_RESERVE);
+        if (info->data) {
+            vfree(info->data);
+        }
         kfree(info);
     }
 }
@@ -62,16 +63,20 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
 {
     struct mmap_info *info = (struct mmap_info *)vmf->vma->vm_private_data;
     struct page *page;
-    unsigned long address;
 
     if (vmf->pgoff >= PAGES_NUMBER) {
         return VM_FAULT_SIGBUS;
     }
-    address = (unsigned long)info->data;
-    page = virt_to_page(address + (vmf->pgoff << PAGE_SHIFT));
+
+    // Usamos vmalloc_to_page porque info->data fue creado con vmalloc
+    page = vmalloc_to_page(info->data + (vmf->pgoff << PAGE_SHIFT));
+    if (!page) {
+        return VM_FAULT_SIGBUS;
+    }
+
     get_page(page);
     vmf->page = page;
-    //pr_info("vm_fault: entregando página %lu\n", vmf->pgoff);
+    // pr_info("vm_fault: entregando pagina: %lu\n",vmf->pgoff);
     return 0;
 }
 
@@ -99,17 +104,19 @@ static int update_data_thread(void *data)
     unsigned char *page_ptr;
 
     while (!kthread_should_stop()) {
-        for (i = 0; i < valid_pages_count; i++) {
+        for (i = 0; i < MAP_SIZE; i++) {
             if (kthread_should_stop()) break;
 
             page_ptr = (unsigned char *)ram_pointers[i];
 
-            if (i < BUFFER_SIZE) {
+            if (page_ptr != NULL) {
                 char value = 0;
                 for(int j = 0; j < PAGE_SIZE; j++){
                     value ^= page_ptr[j];
                 }
                 info->data[i] = value;
+            } else{
+                info->data[i] = (char)255; // blanco -> rojo
             }
             if ((i % 1024) == 0) {
                 cond_resched();
@@ -124,18 +131,19 @@ static int open(struct inode *inode, struct file *filp)
 {
     struct mmap_info *info;
     pr_info("open\n");
-
     info = kmalloc(sizeof(struct mmap_info), GFP_KERNEL);
     if (!info) return -ENOMEM;
 
-    info->data = (char *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, EXP_RESERVE); 
-    atomic_set(&info->refcnt, 1);
-    
-    filp->private_data = info;
-
-    // El hilo se guarda por cada proceso que abre el archivo, no globalmente
+    // Reservamos los 4.19 MB virtualmente contiguos
+    info->data = vmalloc_user(MAP_SIZE);
+    if (!info->data) {
+        pr_err("Fallo al reservar memoria para el buffer\n");
+        kfree(info);
+        return -ENOMEM;
+    }
+    atomic_set(&info->refcnt,1);
+    filp->private_data=info;
     info->thread = kthread_run(update_data_thread, info, "mmap_gen_thread");
-
     return 0;
 }
 
@@ -145,11 +153,11 @@ static ssize_t read(struct file *filp, char __user *buf, size_t len, loff_t *off
     ssize_t ret;
 
     pr_info("read\n");
-    if ((size_t)BUFFER_SIZE <= *off) {
+    if ((size_t)MAP_SIZE <= *off) {
         ret = 0;
     } else {
         info = filp->private_data;
-        ret = min(len, (size_t)BUFFER_SIZE - (size_t)*off);
+        ret = min(len, (size_t)MAP_SIZE - (size_t)*off);
         if (copy_to_user(buf, info->data + *off, ret)) {
             ret = -EFAULT;
         } else {
@@ -165,7 +173,7 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t len, loff
 
     pr_info("write\n");
     info = filp->private_data;
-    if (copy_from_user(info->data, buf, min(len, (size_t)BUFFER_SIZE))) {
+    if (copy_from_user(info->data, buf, min(len, (size_t)MAP_SIZE))) {
         return -EFAULT;
     } else {
         return len;
@@ -214,8 +222,10 @@ static int scan_and_store_ram(void)
     valid_pages_count = 0;
     for (pfn = 0; pfn < MAX_PFN; pfn++) {
         if (page_is_ram(pfn)) {
-            ram_pointers[valid_pages_count] = __va(pfn << PAGE_SHIFT);
+            ram_pointers[pfn] = __va(pfn << PAGE_SHIFT);
             valid_pages_count++;
+        } else{
+            ram_pointers[pfn] = NULL;
         }
         // Ceder la CPU para evitar Soft Lockups
         if ((pfn % 1024) == 0) {
