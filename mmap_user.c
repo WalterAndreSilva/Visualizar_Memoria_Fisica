@@ -8,18 +8,17 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-
 #define PAGE_SIZE 4096
 
 // --- AJUSTES PARA 16 GB DE RAM ---
 // 16 GB = 4,194,304 páginas.
-// Una cuadrícula de 2048x2048 nos da exactamente 4,194,304 píxeles.
+// 2048x2048 = 4,194,304 píxeles.
 #define WIDTH 2048
 #define HEIGHT 2048
+#define MMAP_SIZE (WIDTH * HEIGHT)
 
-// El tamaño de mmap ahora debe cubrir la textura entera (4.19 MB)
-// OJO: Tu módulo del kernel debe tener EXP_RESERVE en 11 (8 MB) para soportar esto.
-#define MMAP_SIZE (WIDTH * HEIGHT) 
+#define WIN_WIDTH 600
+#define WIN_HEIGHT 600
 
 static const char *pathname = "/proc/lkmc_mmap";
 
@@ -61,7 +60,7 @@ GLuint compile_shader(const char* source) {
     return program;
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
     int fd;
 
@@ -75,7 +74,7 @@ int main(int argc, char **argv)
     if (!glfwInit()) return -1;
 
     // Creamos la ventana (puedes redimensionarla, OpenGL escalará la textura de 2048x2048)
-    GLFWwindow* window = glfwCreateWindow(600, 600, "Mapa de RAM (16 GB)", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Mapa de RAM (16 GB)", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -147,10 +146,6 @@ int main(int argc, char **argv)
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // AQUÍ ESTÁ LA MAGIA DEL RENDIMIENTO:
-        // En lugar de iterar con un for(), usamos glTexSubImage2D.
-        // Esto le dice al driver de video que chupe los datos directamente desde 'map_ptr' 
-        // hacia la memoria de la GPU, interpretando 1 byte = 1 nivel de gris.
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_LUMINANCE, GL_UNSIGNED_BYTE, map_ptr);
 
@@ -165,9 +160,9 @@ int main(int argc, char **argv)
         conatadorFrames ++;
         if (tiempoActual-tiempoAnterio >= 1.0){
             double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
-            uint8_t aps = map_ptr[0];     // actualizaciones del kernel por segundo
+            uint8_t akps = map_ptr[0];     // actualizaciones del kernel por segundo
             char titulo[256];
-            snprintf(titulo,sizeof(titulo), "Mapa de RAM 16GB - FPS: %.1f, APS: %hhu",fps, aps);
+            snprintf(titulo,sizeof(titulo), "Mapa de RAM 16GB - FPS: %.1f, AKPS: %hhu",fps, akps);
             glfwSetWindowTitle(window, titulo);
             tiempoAnterio = tiempoActual;
             conatadorFrames = 0;
