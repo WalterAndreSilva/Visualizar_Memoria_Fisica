@@ -30,7 +30,7 @@ int main() {
         printf("Consumo actual: %zu MB\n", total_allocated / (1024 * 1024));
 
         // Pequeña pausa
-        usleep(500000);
+        //sleep(1000);
     }
 
     printf("Manteniendo memoria ocupada. Presiona Ctrl+C para salir.\n");
