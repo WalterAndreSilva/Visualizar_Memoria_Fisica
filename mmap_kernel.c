@@ -68,7 +68,6 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
         return VM_FAULT_SIGBUS;
     }
 
-    // Usamos vmalloc_to_page porque info->data fue creado con vmalloc
     page = vmalloc_to_page(info->data + (vmf->pgoff << PAGE_SHIFT));
     if (!page) {
         return VM_FAULT_SIGBUS;
@@ -102,9 +101,14 @@ static int update_data_thread(void *data)
     struct mmap_info *info = (struct mmap_info *)data;
     unsigned long i;
     unsigned char *page_ptr;
+    // medir la performance
+    uint8_t iteration = 0;
+    unsigned long next_second = jiffies + HZ;
+    uint8_t iteration_per_second = 0;
 
     while (!kthread_should_stop()) {
-        for (i = 0; i < MAP_SIZE; i++) {
+        info->data[0] = iteration_per_second;
+        for (i = 1; i < MAP_SIZE; i++) {
             if (kthread_should_stop()) break;
 
             page_ptr = (unsigned char *)ram_pointers[i];
@@ -116,13 +120,20 @@ static int update_data_thread(void *data)
                 }
                 info->data[i] = value;
             } else{
-                info->data[i] = (char)255; // blanco -> rojo
+                info->data[i] = (char)255; // blanco
             }
             if ((i % 1024) == 0) {
                 cond_resched();
             }
         }
-        msleep(50); 
+        //calculo performance
+        iteration ++;
+        if(time_after(jiffies, next_second)){
+            //pr_info("actualizaciones por segundo: %hhu", iteration);
+            iteration_per_second = iteration;
+            iteration = 0;
+            next_second = jiffies + HZ;
+        }
     }
     return 0;
 }
@@ -134,7 +145,6 @@ static int open(struct inode *inode, struct file *filp)
     info = kmalloc(sizeof(struct mmap_info), GFP_KERNEL);
     if (!info) return -ENOMEM;
 
-    // Reservamos los 4.19 MB virtualmente contiguos
     info->data = vmalloc_user(MAP_SIZE);
     if (!info->data) {
         pr_err("Fallo al reservar memoria para el buffer\n");

@@ -29,7 +29,7 @@ const char* fragment_shader_source =
 "    // Leer el color actual de la textura\n"
 "    vec4 texColor = texture2D(myTexture, gl_TexCoord[0].st);\n"
 "    \n"
-"    // Si el valor es 255 (blanco, normalizado = 1.0), pintar de rojo\n"
+"    // Si el valor es exactamente 255 (blanco), pintar de rojo\n"
 "    if (texColor.r >= 0.99) {\n"
 "        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
 "    } else {\n"
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
     if (!glfwInit()) return -1;
 
     // Creamos la ventana (puedes redimensionarla, OpenGL escalará la textura de 2048x2048)
-    GLFWwindow* window = glfwCreateWindow(1200, 1200, "Mapa de RAM (16 GB)", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(600, 600, "Mapa de RAM (16 GB)", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -89,6 +89,9 @@ int main(int argc, char **argv)
         return -1;
     }
     printf("Usando GLEW %s\n", glewGetString(GLEW_VERSION));
+
+    // V-SYNC: 0 = desactivado, 1=activado(max 60fps en general)
+    glfwSwapInterval(0);
 
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
     unsigned char *map_ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -138,6 +141,9 @@ int main(int argc, char **argv)
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
+    // Para calculor FPS
+    double tiempoAnterio = glfwGetTime();
+    int conatadorFrames = 0;
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -153,6 +159,19 @@ int main(int argc, char **argv)
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        // Calculo FPS
+        double tiempoActual = glfwGetTime();
+        conatadorFrames ++;
+        if (tiempoActual-tiempoAnterio >= 1.0){
+            double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
+            uint8_t aps = map_ptr[0];     // actualizaciones del kernel por segundo
+            char titulo[256];
+            snprintf(titulo,sizeof(titulo), "Mapa de RAM 16GB - FPS: %.1f, APS: %hhu",fps, aps);
+            glfwSetWindowTitle(window, titulo);
+            tiempoAnterio = tiempoActual;
+            conatadorFrames = 0;
+        }
     }
 
     munmap(map_ptr, MMAP_SIZE);
