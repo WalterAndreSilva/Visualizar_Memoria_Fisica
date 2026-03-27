@@ -22,17 +22,41 @@
 
 static const char *pathname = "/proc/lkmc_mmap";
 
+float zoom = 1.0f;
+float offsetX = 0.0f;
+float offsetY = 0.0f;
+
+int isDragging = 0;
+double lastMouseX = 0.0;
+double lastMouseY = 0.0;
+
 const char* fragment_shader_source =
 "uniform sampler2D myTexture;\n"
 "void main() {\n"
 "    // Leer el color actual de la textura\n"
 "    vec4 texColor = texture2D(myTexture, gl_TexCoord[0].st);\n"
 "    \n"
-"    // Si el valor es exactamente 255 (blanco), pintar de rojo\n"
+"    // Seleccion de colores\n"
 "    if (texColor.r >= 0.99) {\n"
+"        // rojo\n"
 "        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+"    } else if (texColor.r >= 0.90) {\n"
+"        //  verde \n"
+"        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
+"    } else if (texColor.r >= 0.80) {\n"
+"        //  azul\n"
+"        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);\n"
+"    } else if (texColor.r >= 0.70) {\n"
+"        //  amarillo\n"
+"        gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);\n"
+"    } else if (texColor.r >= 0.60) {\n"
+"        // violeta\n"
+"        gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+"    } else if (texColor.r >= 0.50) {\n"
+"        // cian\n"
+"        gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0);\n"
 "    } else {\n"
-"        // Si no, usar el valor como gris (R=G=B)\n"
+"        // no se sabe -> negro  (R=G=B)=0\n"
 "        gl_FragColor = vec4(texColor.r, texColor.r, texColor.r, 1.0);\n"
 "    }\n"
 "}\n";
@@ -43,7 +67,6 @@ GLuint compile_shader(const char* source) {
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
 
-    // Opcional: Revisar errores de compilación
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -51,13 +74,49 @@ GLuint compile_shader(const char* source) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
         printf("Error compilando shader: %s\n", infoLog);
     }
-
     GLuint program = glCreateProgram();
     glAttachShader(program, shader);
     glLinkProgram(program);
 
-    glDeleteShader(shader); // Ya está enlazado, podemos liberar la memoria del shader suelto
+    glDeleteShader(shader);
     return program;
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    (void)mods;
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            isDragging = 1;
+            // Guardamos la posición inicial del clic
+            glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+        } else if (action == GLFW_RELEASE) {
+            isDragging = 0;
+        }
+    }
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+    (void)window;
+    if (isDragging) {
+        double deltaX = xpos - lastMouseX;
+        double deltaY = ypos - lastMouseY;
+
+        float moveX = (float)(deltaX * 2.0 / WIN_WIDTH) / zoom;
+        float moveY = (float)(deltaY * 2.0 / WIN_HEIGHT) / zoom;
+
+        offsetX += moveX;
+        offsetY -= moveY;
+
+        lastMouseX = xpos;
+        lastMouseY = ypos;
+    }
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    (void)window;
+    (void)xoffset;
+    if (yoffset > 0) zoom *= 1.1f;
+    else if (yoffset < 0) zoom /= 1.1f;
 }
 
 int main(void)
@@ -73,13 +132,17 @@ int main(void)
 
     if (!glfwInit()) return -1;
 
-    // Creamos la ventana (puedes redimensionarla, OpenGL escalará la textura de 2048x2048)
     GLFWwindow* window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Mapa de RAM (16 GB)", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
     glfwMakeContextCurrent(window);
+
+    // Registrar callbacks del ratón
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
 
     // Iniciamos GLEW
     GLenum err = glewInit();
@@ -89,7 +152,7 @@ int main(void)
     }
     printf("Usando GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    // V-SYNC: 0 = desactivado, 1=activado(max 60fps en general)
+    // V-SYNC: 0 = desactivado, 1=activado (max 60fps en general)
     glfwSwapInterval(0);
 
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
@@ -108,7 +171,7 @@ int main(void)
     };
 
     float texCoords[] = {
-        0.0f, 1.0f, // Invertimos Y para que el origen esté arriba
+        0.0f, 1.0f,
         1.0f, 1.0f,
         1.0f, 0.0f,
         0.0f, 0.0f
@@ -130,13 +193,9 @@ int main(void)
     // Creamos la textura vacía en la GPU, formato de un solo canal (GL_LUMINANCE)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, WIDTH, HEIGHT, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
 
-    // --------------------------------------------------------------
+    // Usamos Shader en OpenGL
     GLuint shaderProgram = compile_shader(fragment_shader_source);
-
-    // Decirle a OpenGL que use este programa para todos los dibujos siguientes
     glUseProgram(shaderProgram);
-
-    // Conectar la textura al shader (0 corresponde al primer sampler de textura activado)
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
@@ -144,12 +203,25 @@ int main(void)
     double tiempoAnterio = glfwGetTime();
     int conatadorFrames = 0;
     while (!glfwWindowShouldClose(window)) {
+        float panSpeed = 0.02f / zoom;
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) offsetY -= panSpeed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) offsetY += panSpeed;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) offsetX += panSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) offsetX -= panSpeed;
+
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // Aplicar transformaciones de cámara
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glScalef(zoom, zoom, 1.0f);
+        glTranslatef(offsetX, offsetY, 0.0f);
+
+        // Actualizar textura y dibujar
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_LUMINANCE, GL_UNSIGNED_BYTE, map_ptr);
 
-        // Dibujar
         glDrawArrays(GL_QUADS, 0, 4);
 
         glfwSwapBuffers(window);
