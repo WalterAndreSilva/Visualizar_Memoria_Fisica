@@ -38,25 +38,37 @@ const char* fragment_shader_source =
 "    \n"
 "    // Seleccion de colores\n"
 "    if (texColor.r >= 0.99) {\n"
-"        // rojo\n"
+"        // (255) ---> rojo\n"
 "        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
 "    } else if (texColor.r >= 0.90) {\n"
-"        //  verde \n"
-"        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
-"    } else if (texColor.r >= 0.80) {\n"
-"        //  azul\n"
+"        // (235) ---> azul \n"
 "        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);\n"
+"    } else if (texColor.r >= 0.80) {\n"
+"        // (210) ---> verde oscuro\n"
+"        gl_FragColor = vec4(0.0, 0.3, 0.0, 1.0);\n"
 "    } else if (texColor.r >= 0.70) {\n"
-"        //  amarillo\n"
-"        gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);\n"
+"        // (185) ---> amarillo dorado\n"
+"        gl_FragColor = vec4(1.0, 0.8, 0.0, 1.0);\n"
 "    } else if (texColor.r >= 0.60) {\n"
-"        // violeta\n"
+"        // (160) ---> magenta\n"
 "        gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);\n"
 "    } else if (texColor.r >= 0.50) {\n"
-"        // cian\n"
-"        gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0);\n"
+"        // (135) ---> cian\n"
+"        gl_FragColor = vec4(0.0, 0.8, 0.8, 1.0);\n"
+"    } else if (texColor.r >= 0.40) {\n"
+"        // (110) ---> naranja\n"
+"        gl_FragColor = vec4(1.0, 0.4, 0.0, 1.0);\n"
+"    } else if (texColor.r >= 0.30) {\n"
+"        //  (85) ---> morado\n"
+"        gl_FragColor = vec4(0.5, 0.0, 0.5, 1.0);\n"
+"    } else if (texColor.r >= 0.20) {\n"
+"        //  (60) ---> marron\n"
+"        gl_FragColor = vec4(0.6, 0.3, 0.1, 1.0);\n"
+"    } else if (texColor.r >= 0.10) {\n"
+"        //  (35) ---> verde claro\n"
+"        gl_FragColor = vec4(0.6, 1.0, 0.6, 1.0);\n"
 "    } else {\n"
-"        // no se sabe -> negro  (R=G=B)=0\n"
+"        // no se sabe ---> negro  (R=G=B)=0\n"
 "        gl_FragColor = vec4(texColor.r, texColor.r, texColor.r, 1.0);\n"
 "    }\n"
 "}\n";
@@ -153,7 +165,7 @@ int main(void)
     printf("Usando GLEW %s\n", glewGetString(GLEW_VERSION));
 
     // V-SYNC: 0 = desactivado, 1=activado (max 60fps en general)
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
     unsigned char *map_ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);

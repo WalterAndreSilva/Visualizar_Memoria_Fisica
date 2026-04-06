@@ -22,12 +22,18 @@
 #define PAGES_NUMBER (MAP_SIZE / PAGE_SIZE) // Exactamente 1024 páginas
 
 #define VAL_VOID 255
-#define VAL_FREE 235
-#define VAL_USER 210
+#define VAL_RESE 235
+#define VAL_PGTB 210
+#define VAL_COMP 185
+
+#define VAL_FILE 110
+#define VAL_ANON 85
+#define VAL_USER 60
+#define VAL_FREE 35
 
 static const char *filename = "lkmc_mmap";
 
-// Estructura global para clasificar toda la RAM
+// Estructura global para clasificar toda la memoria fisica
 struct ram_mapping {
     uint32_t *valid_pfns;
     unsigned long valid_count;
@@ -113,8 +119,26 @@ static inline uint8_t get_value(uint32_t pfn)
 
     //  Sin referencias : page->_refcount = 0
     if (page_count(page) == 0) value = VAL_FREE;
+
+    // Paginas marcadas como tablas
+    else if (folio_test_pgtable(page_folio(page))) value = VAL_PGTB;
+
+    // Paginas marcadas como reservadas
+    else if (PageReserved(page)) value = VAL_RESE;
+
+    // Transparent huge pages and hugetlbfs pages
+    else if (PageCompound(page)) value = VAL_COMP;
+
+    // --- USERSPACE ----
+    // Lista de intercambio/caché del kernel
+    else if (folio_test_lru(page_folio(page))) {
+        // Variables, Heap, Stack (No es caché)
+        if (folio_test_anon(page_folio(page))) value = VAL_ANON;
+        // Archivos cargados en RAM
+        else value = VAL_FILE;
+    }
     // La pagina esta refernciada por alguna tabla del userspace
-    else if (page_mapped(page)) value = VAL_USER;
+    else if (page_mapped(page)) value=VAL_USER;
 
     return value;
 }
