@@ -1,25 +1,11 @@
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/uaccess.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/io.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>
-#include <linux/atomic.h>
-#include <linux/types.h>
+#include "conf.h"
 
-#define MAX_SCAN_GB 32ULL // Mas de los 16 reales
 #define MAX_SCAN_PFN ((MAX_SCAN_GB * 1024 * 1024 * 1024) >> PAGE_SHIFT)
-
-// (16*1024*1024*1024)/4096 = 2048*2048 = 4194304
-#define MAP_SIZE (2048 * 2048) // 4.19 MB exactos para nuestra textura
-#define PAGES_NUMBER (MAP_SIZE / PAGE_SIZE) // Exactamente 1024 páginas
 
 #define VAL_VOID 255
 #define VAL_RESE 235
@@ -31,7 +17,7 @@
 #define VAL_USER 60
 #define VAL_FREE 35
 
-static const char *filename = "lkmc_mmap";
+static const char *filename = "ku_mmap";
 
 // Estructura global para clasificar toda la memoria fisica
 struct ram_mapping {
@@ -79,7 +65,7 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
     struct mmap_info *info = (struct mmap_info *)vmf->vma->vm_private_data;
     struct page *page;
 
-    if (vmf->pgoff >= PAGES_NUMBER) {
+    if (vmf->pgoff >= BUFFER_SIZE / PAGE_SIZE) {
         return VM_FAULT_SIGBUS;
     }
 
@@ -126,7 +112,7 @@ static inline uint8_t get_value(uint32_t pfn)
     // Paginas marcadas como reservadas
     else if (PageReserved(page)) value = VAL_RESE;
 
-    // Transparent huge pages and hugetlbfs pages
+    // Transparent huge pages y hugetlbfs pages
     else if (PageCompound(page)) value = VAL_COMP;
 
     // --- USERSPACE ----
@@ -148,11 +134,10 @@ static int update_data_thread(void *data)
     struct mmap_info *info = (struct mmap_info *)data;
     uint8_t iteration = 0;
     unsigned long next_second = jiffies + HZ;
-    uint8_t iteration_per_second = 0;
 
     while (!kthread_should_stop()) {
-        info->data[0] = iteration_per_second;
-        for (unsigned long i = 1; i < map_data.valid_count; i++) {
+
+        for (unsigned long i = 0; i < map_data.valid_count; i++) {
             uint32_t pfn = map_data.valid_pfns[i];
             info->data[i] = get_value(pfn);
         }
@@ -161,7 +146,7 @@ static int update_data_thread(void *data)
         iteration ++;
         if(time_after(jiffies, next_second)){
             //pr_info("actualizaciones por segundo: %hhu", iteration);
-            iteration_per_second = iteration;
+            info->data[BUFFER_SIZE-1] = iteration;
             iteration = 0;
             next_second = jiffies + HZ;
         }
@@ -169,7 +154,7 @@ static int update_data_thread(void *data)
     return 0;
 }
 
-// El escaneo de RAM se realiza en la carga del módulo (se hace solo una vez)
+// El escaneo de RAM se realiza una vez, en la carga del módulo
 static int scan_and_store_ram(void)
 {
     unsigned long pfn;
@@ -194,7 +179,7 @@ static int scan_and_store_ram(void)
     }
 
     map_data.valid_count = 0;
-    for (pfn = 1; pfn < MAX_SCAN_PFN; pfn++) {
+    for (pfn = 0; pfn < MAX_SCAN_PFN; pfn++) {
         if (pfn_valid(pfn) && page_is_ram(pfn)) {
             map_data.valid_pfns[map_data.valid_count] = pfn;
             map_data.valid_count++;
@@ -213,8 +198,7 @@ static int open(struct inode *inode, struct file *filp)
     info = kmalloc(sizeof(struct mmap_info), GFP_KERNEL);
     if (!info) return -ENOMEM;
 
-    // Reservamos los 4.19 MB virtualmente contiguos
-    info->data = vmalloc_user(MAP_SIZE);
+    info->data = vmalloc_user(BUFFER_SIZE);
     if (!info->data) {
         pr_err("Fallo al reservar memoria para el buffer\n");
         kfree(info);
@@ -224,7 +208,7 @@ static int open(struct inode *inode, struct file *filp)
     filp->private_data=info;
 
 
-    memset(info->data, VAL_VOID, MAP_SIZE); // todo rojo
+    memset(info->data, VAL_VOID, BUFFER_SIZE); // todo rojo
     info->thread = kthread_run(update_data_thread, info, "mmap_gen_thread");
     return 0;
 }
@@ -235,11 +219,11 @@ static ssize_t read(struct file *filp, char __user *buf, size_t len, loff_t *off
     ssize_t ret;
 
     pr_info("read\n");
-    if ((size_t)MAP_SIZE <= *off) {
+    if ((size_t)BUFFER_SIZE <= *off) {
         ret = 0;
     } else {
         info = filp->private_data;
-        ret = min(len, (size_t)MAP_SIZE - (size_t)*off);
+        ret = min(len, (size_t)BUFFER_SIZE - (size_t)*off);
         if (copy_to_user(buf, info->data + *off, ret)) {
             ret = -EFAULT;
         } else {
@@ -255,7 +239,7 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t len, loff
 
     pr_info("write\n");
     info = filp->private_data;
-    if (copy_from_user(info->data, buf, min(len, (size_t)MAP_SIZE))) {
+    if (copy_from_user(info->data, buf, min(len, (size_t)BUFFER_SIZE))) {
         return -EFAULT;
     } else {
         return len;

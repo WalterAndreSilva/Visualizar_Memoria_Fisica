@@ -1,26 +1,13 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include "conf.h"
 
-#define PAGE_SIZE 4096
-
-// --- AJUSTES PARA 16 GB DE RAM ---
-// 16 GB = 4,194,304 páginas.
-// 2048x2048 = 4,194,304 píxeles.
-#define WIDTH 2048
-#define HEIGHT 2048
-#define MMAP_SIZE (WIDTH * HEIGHT)
-
-#define WIN_WIDTH 600
-#define WIN_HEIGHT 600
-
-static const char *pathname = "/proc/lkmc_mmap";
+static const char *pathname = "/proc/ku_mmap";
 
 float zoom = 1.0f;
 float offsetX = 0.0f;
@@ -74,7 +61,8 @@ const char* fragment_shader_source =
 "}\n";
 
 
-GLuint compile_shader(const char* source) {
+GLuint compile_shader(const char* source)
+{
     GLuint shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
@@ -94,7 +82,8 @@ GLuint compile_shader(const char* source) {
     return program;
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
     (void)mods;
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
@@ -107,7 +96,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
     (void)window;
     if (isDragging) {
         double deltaX = xpos - lastMouseX;
@@ -124,7 +114,8 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     }
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
     (void)window;
     (void)xoffset;
     if (yoffset > 0) zoom *= 1.1f;
@@ -134,6 +125,9 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 int main(void)
 {
     int fd;
+    unsigned char *map_ptr;
+    double tiempoAnterio;
+    int conatadorFrames;
 
     printf("Open %s...\n", pathname);
     fd = open(pathname, O_RDWR | O_SYNC);
@@ -164,11 +158,10 @@ int main(void)
     }
     printf("Usando GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    // V-SYNC: 0 = desactivado, 1=activado (max 60fps en general)
-    glfwSwapInterval(1);
+    glfwSwapInterval(V_SYNC);
 
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
-    unsigned char *map_ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    map_ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (map_ptr == MAP_FAILED) {
         perror("Error en mmap. Revisa EXP_RESERVE en el kernel.");
         close(fd);
@@ -192,7 +185,8 @@ int main(void)
     GLuint textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // NEAREST para ver los píxeles duros
+    // NEAREST para ver los píxeles duros
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glEnable(GL_TEXTURE_2D);
@@ -211,9 +205,9 @@ int main(void)
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
-    // Para calculor FPS
-    double tiempoAnterio = glfwGetTime();
-    int conatadorFrames = 0;
+    // Para calcular FPS
+    tiempoAnterio = glfwGetTime();
+    conatadorFrames = 0;
     while (!glfwWindowShouldClose(window)) {
         float panSpeed = 0.02f / zoom;
 
@@ -244,7 +238,7 @@ int main(void)
         conatadorFrames ++;
         if (tiempoActual-tiempoAnterio >= 1.0){
             double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
-            uint8_t akps = map_ptr[0];     // actualizaciones del kernel por segundo
+            uint8_t akps = map_ptr[BUFFER_SIZE-1]; // actualizaciones del kernel por segundo
             char titulo[256];
             snprintf(titulo,sizeof(titulo), "Mapa de RAM 16GB - FPS: %.1f, AKPS: %hhu",fps, akps);
             glfwSetWindowTitle(window, titulo);
@@ -253,7 +247,7 @@ int main(void)
         }
     }
 
-    munmap(map_ptr, MMAP_SIZE);
+    munmap(map_ptr, BUFFER_SIZE);
     glDeleteTextures(1, &textureID);
     glfwDestroyWindow(window);
     glfwTerminate();

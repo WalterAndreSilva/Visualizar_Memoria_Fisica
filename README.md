@@ -1,7 +1,13 @@
 # Visualizar memoria RAM fisica en tiempo real
-### (En proceso)
+#### (En proceso)
 
-Este proyecto consiste en una herramienta diseñada para leer las paginas fisicas perteneciestes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica.
+## Descripción General
+
+Este proyecto consiste en una herramienta diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica interactiva. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización, se puede modificar el archivo `conf.h`.
+
+El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, responsable de clasificar las páginas y mantener la información actualizada. Al inicializarse, el módulo recorre todos los Page Frame Numbers (PFN) y almacena aquellos marcados como memoria RAM. Cabe destacar que esta cantidad detectada es menor que la capacidad teórica de la RAM, ya que la BIOS reserva regiones de memoria durante la creación de su mapa (BIOS-e820) a las cuales el sistema operativo no puede acceder. En la representación gráfica, esta diferencia de memoria reservada se agrupa y se muestra en color rojo.
+
+Una vez que cada página es clasificada según su uso, la información se envía al espacio de usuario. Para esto, se estableció un archivo llamado `ku_mmap` como método de comunicación, aprovechando las ventajas de rendimiento que ofrece mmap. Finalmente, la aplicación de usuario `mmap_user` se encarga de recibir estos datos y renderizar los gráficos utilizando OpenGL, incorporando además la capacidad de realizar zoom y desplazarse libremente sobre la visualización.
 
 ### Significado de los colores de las páginas
 
@@ -76,7 +82,7 @@ $ sudo ./mmap_user
 $ sudo ./full_mem
 ```
 
-### Fuentes 
+## Fuentes 
 
  Stack overflow
  
