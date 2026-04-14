@@ -14,10 +14,6 @@
 // Hay páginas fisicas que no estan en la RAM.
 #define MAX_SCAN_GB 32ULL
 
-// Visualización: Tamaño de la ventana
-#define WIN_WIDTH 600
-#define WIN_HEIGHT 600
-
 // V-SYNC: 0 = desactivado, 1 = activado (max 60fps generalmente)
 #define V_SYNC 1
 

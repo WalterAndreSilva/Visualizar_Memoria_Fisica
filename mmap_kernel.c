@@ -294,3 +294,5 @@ static void myexit(void)
 module_init(myinit)
 module_exit(myexit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Módulo para escanear memoria RAM física y mapearla a userspace");
+MODULE_AUTHOR("Walter André Silva");

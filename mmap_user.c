@@ -13,6 +13,10 @@ float zoom = 1.0f;
 float offsetX = 0.0f;
 float offsetY = 0.0f;
 
+int is_fullscreen = 1;
+int win_x = 100, win_y = 100;
+int win_w = 800, win_h = 800;
+
 int isDragging = 0;
 double lastMouseX = 0.0;
 double lastMouseY = 0.0;
@@ -98,13 +102,22 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    (void)window;
     if (isDragging) {
+        int w, h;
+        glfwGetWindowSize(window, &w, &h);
+        if (h == 0) h = 1;
+
         double deltaX = xpos - lastMouseX;
         double deltaY = ypos - lastMouseY;
+        float moveX, moveY;
 
-        float moveX = (float)(deltaX * 2.0 / WIN_WIDTH) / zoom;
-        float moveY = (float)(deltaY * 2.0 / WIN_HEIGHT) / zoom;
+        if (w >= h) {
+            moveX = (float)(deltaX * 2.0 / h) / zoom;
+            moveY = (float)(deltaY * 2.0 / h) / zoom;
+        } else {
+            moveX = (float)(deltaX * 2.0 / w) / zoom;
+            moveY = (float)(deltaY * 2.0 / w) / zoom;
+        }
 
         offsetX += moveX;
         offsetY -= moveY;
@@ -120,6 +133,34 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     (void)xoffset;
     if (yoffset > 0) zoom *= 1.1f;
     else if (yoffset < 0) zoom /= 1.1f;
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    (void)scancode;
+    (void)mods;
+
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, 1);
+    }
+
+    if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+        if (!is_fullscreen) {
+            // Guardar la posición y tamaño actual de la ventana
+            glfwGetWindowPos(window, &win_x, &win_y);
+            glfwGetWindowSize(window, &win_w, &win_h);
+            // Obtener el monitor principal y su resolución actual
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            // Pasar a pantalla completa
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            is_fullscreen = 1;
+        } else {
+            // Restaurar al modo ventana utilizando las dimensiones guardadas
+            glfwSetWindowMonitor(window, NULL, win_x, win_y, win_w, win_h, 0);
+            is_fullscreen = 0;
+        }
+    }
 }
 
 int main(void)
@@ -138,17 +179,24 @@ int main(void)
 
     if (!glfwInit()) return -1;
 
-    GLFWwindow* window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Mapa de RAM (16 GB)", NULL, NULL);
+    // Obtenemos el monitor principal y su resolución para arrancar maximizados
+    GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+    // Le pasamos el monitor para que tome control exclusivo de la pantalla
+    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Mapa de RAM (16 GB)", primary_monitor, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
+
     glfwMakeContextCurrent(window);
 
     // Registrar callbacks del ratón
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     // Iniciamos GLEW
     GLenum err = glewInit();
@@ -216,11 +264,27 @@ int main(void)
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) offsetX += panSpeed;
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) offsetX -= panSpeed;
 
+        // Obtener el tamaño actual de la ventana
+        int current_w, current_h;
+
+        glfwGetFramebufferSize(window, &current_w, &current_h);
+        if (current_h == 0) current_h = 1;
+        glViewport(0, 0, current_w, current_h);
+
+        float aspect = (float)current_w / (float)current_h;
+
+        // Aplicar corrección
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        if (current_w >= current_h) {
+            glOrtho(-aspect, aspect, -1.0, 1.0, -1.0, 1.0);
+        } else {
+            glOrtho(-1.0, 1.0, -1.0 / aspect, 1.0 / aspect, -1.0, 1.0);
+        }
+
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Aplicar transformaciones de cámara
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
         glScalef(zoom, zoom, 1.0f);
         glTranslatef(offsetX, offsetY, 0.0f);
 
