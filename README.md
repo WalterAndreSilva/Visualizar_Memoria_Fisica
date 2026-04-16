@@ -9,8 +9,12 @@ El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, res
 
 Una vez que cada página es clasificada según su uso, la información se envía al espacio de usuario. Para esto, se estableció un archivo llamado `ku_mmap` como método de comunicación, aprovechando las ventajas de rendimiento que ofrece mmap. Finalmente, la aplicación de usuario `mmap_user` se encarga de recibir estos datos y renderizar los gráficos utilizando OpenGL, incorporando además la capacidad de realizar zoom y desplazarse libremente sobre la visualización.
 
+Presionando la tecla **z** puedes alternar entre la vista de uso de la memoria RAM y la vista por zonas. Con la tecla **f** puedes salir del modo de pantalla completa (fullscreen).
+
 ### Significado de los colores de las páginas
 
+#### Vista de usos
+ 
 - Rojo (VOID): Representa la discrepancia entre la cantidad de páginas teóricas y las páginas físicas detectadas por el sistema como RAM.
 
 - Azul (RESE): Páginas reservadas exclusivamente por el Kernel. Incluye la imagen binaria del kernel y sus estructuras esenciales.
@@ -29,6 +33,13 @@ Una vez que cada página es clasificada según su uso, la información se envía
 
 - Negro: Dentro del bloque que representa la memoria RAM, hay páginas que no entran en ninguna de las categorías anteriores y el kernel las utiliza para realizar otras tareas.
 
+#### Vista de zonas
+
+- Magenta (Zona DMA): Históricamente, representa los primeros 16 MB de memoria física. Está reservada para hardware antiguo que utiliza un bus de direcciones de 24 bits. La tecnología DMA (Direct Memory Access) permite a estos periféricos transferir datos directamente hacia y desde la RAM sin la intervención constante de la CPU.
+
+- Cian (Zona DMA32): Espacio que abarca desde los 16 MB hasta los 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
+
+- Naranja (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
 
 ## Instalar librerias
 Instalar las herramientas esenciales y los encabezados del kernel actual: 

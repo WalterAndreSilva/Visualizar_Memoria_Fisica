@@ -3,19 +3,9 @@
 #include <linux/proc_fs.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
-#include "conf.h"
+#include "share.h"
 
 #define MAX_SCAN_PFN ((MAX_SCAN_GB * 1024 * 1024 * 1024) >> PAGE_SHIFT)
-
-#define VAL_VOID 255
-#define VAL_RESE 235
-#define VAL_PGTB 210
-#define VAL_COMP 185
-
-#define VAL_FILE 110
-#define VAL_ANON 85
-#define VAL_USER 60
-#define VAL_FREE 35
 
 static const char *filename = "ku_mmap";
 
@@ -98,10 +88,10 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
     return 0;
 }
 
-static inline uint8_t get_value(uint32_t pfn)
+static inline uint8_t get_value_use(uint32_t pfn)
 {
     struct page *page = pfn_to_page(pfn);
-    uint8_t value = 0;
+    uint8_t value = VAL_UNKN;
 
     //  Sin referencias : page->_refcount = 0
     if (page_count(page) == 0) value = VAL_FREE;
@@ -124,7 +114,22 @@ static inline uint8_t get_value(uint32_t pfn)
         else value = VAL_FILE;
     }
     // La pagina esta refernciada por alguna tabla del userspace
-    else if (page_mapped(page)) value=VAL_USER;
+    else if (page_mapped(page)) value = VAL_USER;
+
+    return value;
+}
+
+static inline uint8_t get_value_zone(uint32_t pfn)
+{
+    struct page *page = pfn_to_page(pfn);
+    uint8_t value = VAL_UNKN;
+
+    // enum zone_type en linux/mmzone.h
+    int zone_idx = page_zonenum(page);
+
+    if (zone_idx == ZONE_DMA) value = VAL_ZONE_DMA;
+    else if (zone_idx == ZONE_DMA32) value = VAL_ZONE_DMA32;
+    else if (zone_idx == ZONE_NORMAL) value = VAL_ZONE_NORMAL;
 
     return value;
 }
@@ -134,19 +139,29 @@ static int update_data_thread(void *data)
     struct mmap_info *info = (struct mmap_info *)data;
     uint8_t iteration = 0;
     unsigned long next_second = jiffies + HZ;
+    uint8_t view_mode = 1;
+    info->data[INDEX_MODE] = view_mode;
 
     while (!kthread_should_stop()) {
 
-        for (unsigned long i = 0; i < map_data.valid_count; i++) {
-            uint32_t pfn = map_data.valid_pfns[i];
-            info->data[i] = get_value(pfn);
+        if (view_mode == 1){
+            for (unsigned long i = 0; i < map_data.valid_count; i++) {
+                uint32_t pfn = map_data.valid_pfns[i];
+                info->data[i] = get_value_use(pfn);
+            }
+        } else if (view_mode == 0){
+            for (unsigned long i = 0; i < map_data.valid_count; i++) {
+                uint32_t pfn = map_data.valid_pfns[i];
+                info->data[i] = get_value_zone(pfn);
+            }
         }
         cond_resched();
+        view_mode = info->data[INDEX_MODE];
         // Calculo de performance
         iteration ++;
         if(time_after(jiffies, next_second)){
             //pr_info("actualizaciones por segundo: %hhu", iteration);
-            info->data[BUFFER_SIZE-1] = iteration;
+            info->data[INDEX_AKPS] = iteration;
             iteration = 0;
             next_second = jiffies + HZ;
         }

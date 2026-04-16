@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include "conf.h"
+#include "share.h"
 
 static const char *pathname = "/proc/ku_mmap";
+static unsigned char *map_ptr;
 
 float zoom = 1.0f;
 float offsetX = 0.0f;
@@ -22,48 +23,35 @@ double lastMouseX = 0.0;
 double lastMouseY = 0.0;
 
 const char* fragment_shader_source =
-"uniform sampler2D myTexture;\n"
+"#version 130\n"
+"uniform usampler2D myTexture;\n"
+"\n"
+"const vec4 palette[11] = vec4[11](\n"
+"    vec4(0.0, 0.0, 0.0, 0.0), // Valor 0: negro\n"
+"    vec4(1.0, 0.0, 0.0, 1.0), // Valor 1: rojo\n"
+"    vec4(0.0, 0.0, 1.0, 1.0), // Valor 2: azul\n"
+"    vec4(0.6, 1.0, 0.6, 1.0), // Valor 3: verde claro\n"
+"    vec4(0.0, 0.3, 0.0, 1.0), // Valor 4: verde oscuro\n"
+"    vec4(1.0, 0.8, 0.0, 1.0), // Valor 5: amarillo\n"
+"    vec4(1.0, 0.0, 1.0, 1.0), // Valor 6: magenta\n"
+"    vec4(0.0, 0.8, 0.8, 1.0), // Valor 7: cian\n"
+"    vec4(1.0, 0.4, 0.0, 1.0), // Valor 8: naranja\n"
+"    vec4(0.5, 0.0, 0.5, 1.0), // Valor 9: morado\n"
+"    vec4(0.6, 0.3, 0.1, 1.0)  // Valor 10: marron\n"
+");\n"
+"\n"
 "void main() {\n"
-"    // Leer el color actual de la textura\n"
-"    vec4 texColor = texture2D(myTexture, gl_TexCoord[0].st);\n"
+"    uvec4 texColor = texture(myTexture, gl_TexCoord[0].st);\n"
+"    uint val = texColor.r;\n"
 "    \n"
-"    // Seleccion de colores\n"
-"    if (texColor.r >= 0.99) {\n"
-"        // (255) ---> rojo\n"
-"        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
-"    } else if (texColor.r >= 0.90) {\n"
-"        // (235) ---> azul \n"
-"        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);\n"
-"    } else if (texColor.r >= 0.80) {\n"
-"        // (210) ---> verde oscuro\n"
-"        gl_FragColor = vec4(0.0, 0.3, 0.0, 1.0);\n"
-"    } else if (texColor.r >= 0.70) {\n"
-"        // (185) ---> amarillo dorado\n"
-"        gl_FragColor = vec4(1.0, 0.8, 0.0, 1.0);\n"
-"    } else if (texColor.r >= 0.60) {\n"
-"        // (160) ---> magenta\n"
-"        gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);\n"
-"    } else if (texColor.r >= 0.50) {\n"
-"        // (135) ---> cian\n"
-"        gl_FragColor = vec4(0.0, 0.8, 0.8, 1.0);\n"
-"    } else if (texColor.r >= 0.40) {\n"
-"        // (110) ---> naranja\n"
-"        gl_FragColor = vec4(1.0, 0.4, 0.0, 1.0);\n"
-"    } else if (texColor.r >= 0.30) {\n"
-"        //  (85) ---> morado\n"
-"        gl_FragColor = vec4(0.5, 0.0, 0.5, 1.0);\n"
-"    } else if (texColor.r >= 0.20) {\n"
-"        //  (60) ---> marron\n"
-"        gl_FragColor = vec4(0.6, 0.3, 0.1, 1.0);\n"
-"    } else if (texColor.r >= 0.10) {\n"
-"        //  (35) ---> verde claro\n"
-"        gl_FragColor = vec4(0.6, 1.0, 0.6, 1.0);\n"
+"    if (val < 11u) {\n"
+"        // Si el valor es correcto, pintamos de color\n"
+"        gl_FragColor = palette[val];\n"
 "    } else {\n"
-"        // no se sabe ---> negro  (R=G=B)=0\n"
-"        gl_FragColor = vec4(texColor.r, texColor.r, texColor.r, 1.0);\n"
+"        // Si el valor no se reconoce, pintamos de blanco\n"
+"        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 "    }\n"
 "}\n";
-
 
 GLuint compile_shader(const char* source)
 {
@@ -161,12 +149,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             is_fullscreen = 0;
         }
     }
+    if (key == GLFW_KEY_Z && action == GLFW_PRESS){
+        map_ptr[INDEX_MODE] = (map_ptr[INDEX_MODE]+1) % 2;
+        glfwSetWindowTitle(window, "Cambio de vista");
+    }
 }
 
 int main(void)
 {
     int fd;
-    unsigned char *map_ptr;
     double tiempoAnterio;
     int conatadorFrames;
 
@@ -211,7 +202,7 @@ int main(void)
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
     map_ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (map_ptr == MAP_FAILED) {
-        perror("Error en mmap. Revisa EXP_RESERVE en el kernel.");
+        perror("Error en mmap");
         close(fd);
         return -1;
     }
@@ -244,8 +235,8 @@ int main(void)
     glVertexPointer(2, GL_FLOAT, 0, vertices);
     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
 
-    // Creamos la textura vacía en la GPU, formato de un solo canal (GL_LUMINANCE)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, WIDTH, HEIGHT, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+    // Creamos la textura vacía en la GPU, unsigned int (8bits)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, WIDTH, HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
 
     // Usamos Shader en OpenGL
     GLuint shaderProgram = compile_shader(fragment_shader_source);
@@ -253,7 +244,6 @@ int main(void)
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
-    // Para calcular FPS
     tiempoAnterio = glfwGetTime();
     conatadorFrames = 0;
     while (!glfwWindowShouldClose(window)) {
@@ -290,7 +280,7 @@ int main(void)
 
         // Actualizar textura y dibujar
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_LUMINANCE, GL_UNSIGNED_BYTE, map_ptr);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE, map_ptr);
 
         glDrawArrays(GL_QUADS, 0, 4);
 
@@ -302,9 +292,12 @@ int main(void)
         conatadorFrames ++;
         if (tiempoActual-tiempoAnterio >= 1.0){
             double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
-            uint8_t akps = map_ptr[BUFFER_SIZE-1]; // actualizaciones del kernel por segundo
+            uint8_t akps = map_ptr[INDEX_AKPS]; // actualizaciones del kernel por segundo
             char titulo[256];
-            snprintf(titulo,sizeof(titulo), "Mapa de RAM 16GB - FPS: %.1f, AKPS: %hhu",fps, akps);
+            char *mode;
+            if (map_ptr[INDEX_MODE]==1) mode ="Uso";
+            else mode = "Zonas";
+            snprintf(titulo,sizeof(titulo), "Mapa de RAM - Vista: %s, FPS: %.1f, AKPS: %hhu",mode, fps, akps);
             glfwSetWindowTitle(window, titulo);
             tiempoAnterio = tiempoActual;
             conatadorFrames = 0;
