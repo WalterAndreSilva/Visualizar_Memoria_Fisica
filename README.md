@@ -9,7 +9,19 @@ El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, res
 
 Una vez que cada página es clasificada según su uso, la información se envía al espacio de usuario. Para esto, se estableció un archivo llamado `ku_mmap` como método de comunicación, aprovechando las ventajas de rendimiento que ofrece mmap. Finalmente, la aplicación de usuario `mmap_user` se encarga de recibir estos datos y renderizar los gráficos utilizando OpenGL, incorporando además la capacidad de realizar zoom y desplazarse libremente sobre la visualización.
 
-Presionando la tecla **z** puedes alternar entre la vista de uso de la memoria RAM y la vista por zonas. Con la tecla **f** puedes salir del modo de pantalla completa (fullscreen).
+### Teclas
+
+- **F**: Activar o desactivar la pantalla completa.
+- **R**: Resetear posicion y zoom.
+- **I**: Mostrar la información de las páginas.
+- **1-8**: Mostrar u ocultar la categoría de la página.
+- **A**: Seleccionar todas las páginas o ninguna.
+- **X**: Invertir la selección actual.
+- **Z**: Alternar entre la vista del uso de la memoria RAM y a que zona pertenece.
+- **S**: Mostrar estado de la página.
+- **W** y **E**: teclas auxiliares para hacer zoom.
+- **Teclas de dirección**: Desplazarse por la textura.
+
 
 ### Significado de los colores de las páginas
 
@@ -39,7 +51,13 @@ Presionando la tecla **z** puedes alternar entre la vista de uso de la memoria R
 
 - Cian (Zona DMA32): Espacio que abarca desde los 16 MB hasta los 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
 
-- Naranja (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
+- Azul (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
+
+#### Vista de estados
+
+- Morado (WB): Páginas en transito desde la RAM hacia el disco duro.
+
+- Amarillo (DIRTY): Páginas modificadas en la RAM, pendientes de ser guardarse en disco.
 
 ## Instalar librerias
 Instalar las herramientas esenciales y los encabezados del kernel actual: 
@@ -112,3 +130,7 @@ $ sudo ./full_mem
  Memory Management Documentation (Incopleto)
  
  https://www.kernel.org/doc/html/latest/mm/
+
+ 
+
+ 

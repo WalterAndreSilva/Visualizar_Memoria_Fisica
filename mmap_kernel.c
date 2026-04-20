@@ -88,34 +88,37 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
     return 0;
 }
 
-static inline uint8_t get_value_use(uint32_t pfn)
+static inline uint8_t get_value_use(uint32_t pfn, uint8_t view_page)
 {
     struct page *page = pfn_to_page(pfn);
     uint8_t value = VAL_UNKN;
 
     //  Sin referencias : page->_refcount = 0
-    if (page_count(page) == 0) value = VAL_FREE;
+    if (page_count(page) == 0){
+        if(view_page & MASK_FREE) value = VAL_FREE;
 
-    // Paginas marcadas como tablas
-    else if (folio_test_pgtable(page_folio(page))) value = VAL_PGTB;
+    } else if (folio_test_pgtable(page_folio(page))){
+        if(view_page & MASK_PGTB) value = VAL_PGTB;
 
-    // Paginas marcadas como reservadas
-    else if (PageReserved(page)) value = VAL_RESE;
+    } else if (PageReserved(page)){
+        if (view_page & MASK_RESE) value = VAL_RESE;
 
-    // Transparent huge pages y hugetlbfs pages
-    else if (PageCompound(page)) value = VAL_COMP;
+    } else if (PageCompound(page)) {
+        if(view_page & MASK_COMP) value = VAL_COMP;
 
     // --- USERSPACE ----
-    // Lista de intercambio/caché del kernel
-    else if (folio_test_lru(page_folio(page))) {
-        // Variables, Heap, Stack (No es caché)
-        if (folio_test_anon(page_folio(page))) value = VAL_ANON;
-        // Archivos cargados en RAM
-        else value = VAL_FILE;
-    }
-    // La pagina esta refernciada por alguna tabla del userspace
-    else if (page_mapped(page)) value = VAL_USER;
+    } else if (folio_test_lru(page_folio(page))) {
+        if (folio_test_anon(page_folio(page))){
+            if(view_page & MASK_ANON) value = VAL_ANON;
 
+        } else {
+            if(view_page & MASK_FILE) value = VAL_FILE;
+        }
+    } else if (page_mapped(page)){
+        if(view_page & MASK_USER) value = VAL_USER;
+    }else{
+         if(view_page & MASK_KERN) value = VAL_KERN;
+    }
     return value;
 }
 
@@ -134,29 +137,48 @@ static inline uint8_t get_value_zone(uint32_t pfn)
     return value;
 }
 
+static inline uint8_t get_value_state(uint32_t pfn)
+{
+    struct page *page = pfn_to_page(pfn);
+    uint8_t value = VAL_UNKN;
+
+    if (PageWriteback(page)) value = VAL_WRITEBACK;
+    else if (PageDirty(page)) value = VAL_DIRTY;
+
+    return value;
+}
+
 static int update_data_thread(void *data)
 {
     struct mmap_info *info = (struct mmap_info *)data;
     uint8_t iteration = 0;
     unsigned long next_second = jiffies + HZ;
-    uint8_t view_mode = 1;
+    uint8_t view_mode = 0;
+    uint8_t view_page = MASK_ALL;
     info->data[INDEX_MODE] = view_mode;
+    info->data[INDEX_VIEW] = view_page;
 
     while (!kthread_should_stop()) {
 
-        if (view_mode == 1){
+        if (view_mode == 0){
             for (unsigned long i = 0; i < map_data.valid_count; i++) {
                 uint32_t pfn = map_data.valid_pfns[i];
-                info->data[i] = get_value_use(pfn);
+                info->data[i] = get_value_use(pfn, view_page);
             }
-        } else if (view_mode == 0){
+        } else if (view_mode == 1){
             for (unsigned long i = 0; i < map_data.valid_count; i++) {
                 uint32_t pfn = map_data.valid_pfns[i];
                 info->data[i] = get_value_zone(pfn);
             }
+        } else if (view_mode == 2){
+            for (unsigned long i = 0; i < map_data.valid_count; i++) {
+                uint32_t pfn = map_data.valid_pfns[i];
+                info->data[i] = get_value_state(pfn);
+            }
         }
         cond_resched();
         view_mode = info->data[INDEX_MODE];
+        view_page = info->data[INDEX_VIEW];
         // Calculo de performance
         iteration ++;
         if(time_after(jiffies, next_second)){
