@@ -5,9 +5,9 @@
 
 Este proyecto consiste en una herramienta diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica interactiva. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización, se puede modificar el archivo `conf.h`.
 
-El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, responsable de clasificar las páginas y mantener la información actualizada. Al inicializarse, el módulo recorre todos los Page Frame Numbers (PFN) y almacena aquellos marcados como memoria RAM. Cabe destacar que esta cantidad detectada es menor que la capacidad teórica de la RAM, ya que la BIOS reserva regiones de memoria durante la creación de su mapa (BIOS-e820) a las cuales el sistema operativo no puede acceder. En la representación gráfica, esta diferencia de memoria reservada se agrupa y se muestra en color rojo.
+El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, responsable de clasificar las páginas y mantener la información actualizada. Al inicializarse, el módulo recorre todos los Page Frame Numbers (PFN) y almacena aquellos marcados como memoria RAM. Cabe destacar que esta cantidad detectada es menor que la capacidad teórica de la RAM, ya que la BIOS reserva regiones de memoria durante la creación del mapa de memoria (BIOS-e820). Este mapa de memoria se puede observar en el archivo /proc/iomem. En la representación gráfica, la memoria reservada por la BIOS se muestra en color rojo.
 
-Una vez que cada página es clasificada según su uso, la información se envía al espacio de usuario. Para esto, se estableció un archivo llamado `ku_mmap` como método de comunicación, aprovechando las ventajas de rendimiento que ofrece mmap. Finalmente, la aplicación de usuario `mmap_user` se encarga de recibir estos datos y renderizar los gráficos utilizando OpenGL, incorporando además la capacidad de realizar zoom y desplazarse libremente sobre la visualización.
+Una vez que cada página es clasificada, la información se envía al espacio de usuario. Para esto, se estableció un archivo llamado `ku_mmap` como método de comunicación, aprovechando las ventajas de rendimiento que ofrece mmap. Finalmente, la aplicación de usuario `mmap_user` se encarga de recibir estos datos y renderizar los gráficos utilizando OpenGL, incorporando además la capacidad de realizar zoom y desplazarse libremente sobre la visualización.
 
 ### Teclas
 
@@ -17,7 +17,7 @@ Una vez que cada página es clasificada según su uso, la información se envía
 - **1-8**: Mostrar u ocultar la categoría de la página.
 - **A**: Seleccionar todas las páginas o ninguna.
 - **X**: Invertir la selección actual.
-- **Z**: Alternar entre la vista del uso de la memoria RAM y a que zona pertenece.
+- **Z**: Alternar entre la vistas y a que zona pertenece.
 - **S**: Mostrar estado de la página.
 - **W** y **E**: teclas auxiliares para hacer zoom.
 - **Teclas de dirección**: Desplazarse por la textura.
@@ -27,7 +27,7 @@ Una vez que cada página es clasificada según su uso, la información se envía
 
 #### Vista de usos
  
-- Rojo (VOID): Representa la discrepancia entre la cantidad de páginas teóricas y las páginas físicas detectadas por el sistema como RAM.
+- Rojo (VOID): Representa los páginas reservadas por la BIOS.
 
 - Azul (RESE): Páginas reservadas exclusivamente por el Kernel. Incluye la imagen binaria del kernel y sus estructuras esenciales.
 
@@ -47,19 +47,24 @@ Una vez que cada página es clasificada según su uso, la información se envía
 
 #### Vista de zonas
 
+Esta vista muestra la distribución física de la RAM, por lo tanto, es estática y no varía con el tiempo.
+
 - Magenta (Zona DMA): Históricamente, representa los primeros 16 MB de memoria física. Está reservada para hardware antiguo que utiliza un bus de direcciones de 24 bits. La tecnología DMA (Direct Memory Access) permite a estos periféricos transferir datos directamente hacia y desde la RAM sin la intervención constante de la CPU.
 
-- Cian (Zona DMA32): Espacio que abarca desde los 16 MB hasta los 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
+- Cian (Zona DMA32): Espacio que abarca desde los 16 MB y puede extenderse hasta un máximo de 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
 
 - Azul (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
 
 #### Vista de estados
+
+Las páginas de usuario pueden ser modificadas y, tras un intervalo, los cambios se sincronizan en el almacenamiento permanente. Esta transición es especialmente visible durante la copia de archivos de gran tamaño.
 
 - Morado (WB): Páginas en transito desde la RAM hacia el disco duro.
 
 - Amarillo (DIRTY): Páginas modificadas en la RAM, pendientes de ser guardarse en disco.
 
 ## Instalar librerias
+
 Instalar las herramientas esenciales y los encabezados del kernel actual: 
 ```bash
 $ sudo apt update && sudo apt install build-essential linux-headers-$(uname -r)
@@ -72,6 +77,7 @@ Instalar GLEW para ejecutar shader en la tarjeta grafica.
 ```bash
 $ sudo apt-get install libglew-dev 
 ```
+
 ## Compilacion 
 
 Se incluye un Makefile que automatiza la compilación tanto del módulo del kernel como de las herramientas de usuario. Esto abarca la aplicación gráfica de visualización y un programa de prueba diseñado para llenar la memoria con datos aleatorios.
@@ -131,6 +137,8 @@ $ sudo ./full_mem
  
  https://www.kernel.org/doc/html/latest/mm/
 
+ Direccionamiento de memoria y E/S mapeada en memoria
  
+ https://medium.com/@tom_84912/memory-addressing-and-memory-mapped-i-o-7b602958da94
 
  

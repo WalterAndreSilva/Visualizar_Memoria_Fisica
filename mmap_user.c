@@ -115,6 +115,11 @@ int main(void)
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
+    unsigned long total_pages = *(unsigned long*)(&map_ptr[INDEX_TOTAL_PAGES]);
+    //  (((total_pages*4096)/1024)/1024)/1024 = total_pages/262144
+    double total_ram_gb = ((double)total_pages)/262144;
+    printf("Paginas totales: %lu \n", total_pages);
+
     tiempoAnterio = glfwGetTime();
     conatadorFrames = 0;
     while (!glfwWindowShouldClose(window)) {
@@ -141,7 +146,6 @@ int main(void)
 
         // Aplicar transformaciones de cámara
         apply_transformation();
-
 
         // Actualizar textura y dibujar
         glBindTexture(GL_TEXTURE_2D, textureID);
@@ -176,7 +180,7 @@ int main(void)
             double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
             uint8_t akps = map_ptr[INDEX_AKPS]; // actualizaciones del kernel por segundo
             char titulo[256];
-            snprintf(titulo,sizeof(titulo), "RAM map - FPS: %.1f, AKPS: %hhu", fps, akps);
+            snprintf(titulo,sizeof(titulo), "RAM map %.2f GB - FPS: %.1f, AKPS: %hhu",total_ram_gb, fps, akps);
             glfwSetWindowTitle(window, titulo);
             tiempoAnterio = tiempoActual;
             conatadorFrames = 0;

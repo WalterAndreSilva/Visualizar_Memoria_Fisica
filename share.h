@@ -3,10 +3,11 @@
 #ifndef SHARE_H
 #define SHARE_H
 
-#define BUFFER_SIZE  (WIDTH*HEIGHT)+3
+#define BUFFER_SIZE  (WIDTH*HEIGHT)+11
 #define INDEX_VIEW    BUFFER_SIZE-1
 #define INDEX_MODE    BUFFER_SIZE-2
 #define INDEX_AKPS    BUFFER_SIZE-3
+#define INDEX_TOTAL_PAGES BUFFER_SIZE-11
 
 #define MASK_FREE (1<<0)
 #define MASK_PGTB (1<<1)

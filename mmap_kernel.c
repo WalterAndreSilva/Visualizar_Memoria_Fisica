@@ -11,8 +11,11 @@ static const char *filename = "ku_mmap";
 
 // Estructura global para clasificar toda la memoria fisica
 struct ram_mapping {
-    uint32_t *valid_pfns;
     unsigned long valid_count;
+
+    uint32_t *sysRAM_pfns;
+    uint32_t *sysRAM_pos;
+    unsigned long sysRAM_count;
 };
 
 static struct ram_mapping map_data;
@@ -90,8 +93,8 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
 
 static inline uint8_t get_value_use(uint32_t pfn, uint8_t view_page)
 {
-    struct page *page = pfn_to_page(pfn);
     uint8_t value = VAL_UNKN;
+    struct page *page = pfn_to_page(pfn);
 
     //  Sin referencias : page->_refcount = 0
     if (page_count(page) == 0){
@@ -117,30 +120,32 @@ static inline uint8_t get_value_use(uint32_t pfn, uint8_t view_page)
     } else if (page_mapped(page)){
         if(view_page & MASK_USER) value = VAL_USER;
     }else{
-         if(view_page & MASK_KERN) value = VAL_KERN;
+        if(view_page & MASK_KERN) value = VAL_KERN;
     }
+
     return value;
+
 }
 
 static inline uint8_t get_value_zone(uint32_t pfn)
 {
-    struct page *page = pfn_to_page(pfn);
     uint8_t value = VAL_UNKN;
-
+    struct page *page = pfn_to_page(pfn);
     // enum zone_type en linux/mmzone.h
     int zone_idx = page_zonenum(page);
 
     if (zone_idx == ZONE_DMA) value = VAL_ZONE_DMA;
     else if (zone_idx == ZONE_DMA32) value = VAL_ZONE_DMA32;
     else if (zone_idx == ZONE_NORMAL) value = VAL_ZONE_NORMAL;
+    else if (zone_idx == ZONE_DEVICE) value = VAL_DIRTY;
 
     return value;
 }
 
 static inline uint8_t get_value_state(uint32_t pfn)
 {
-    struct page *page = pfn_to_page(pfn);
     uint8_t value = VAL_UNKN;
+    struct page *page = pfn_to_page(pfn);
 
     if (PageWriteback(page)) value = VAL_WRITEBACK;
     else if (PageDirty(page)) value = VAL_DIRTY;
@@ -155,30 +160,39 @@ static int update_data_thread(void *data)
     unsigned long next_second = jiffies + HZ;
     uint8_t view_mode = 0;
     uint8_t view_page = MASK_ALL;
+    unsigned long total_pages = map_data.valid_count;
+
+    memset(info->data, VAL_VOID, total_pages); // todo rojo
     info->data[INDEX_MODE] = view_mode;
     info->data[INDEX_VIEW] = view_page;
+    for (int i = 0; i < 8; i++) {
+        info->data[INDEX_TOTAL_PAGES+i] = (total_pages >> (i*8)) & 0xFF;
+    }
 
     while (!kthread_should_stop()) {
-
         if (view_mode == 0){
-            for (unsigned long i = 0; i < map_data.valid_count; i++) {
-                uint32_t pfn = map_data.valid_pfns[i];
-                info->data[i] = get_value_use(pfn, view_page);
+            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
+                uint32_t pfn = map_data.sysRAM_pfns[i];
+                uint32_t pos = map_data.sysRAM_pos[i];
+                view_page = info->data[INDEX_VIEW];
+                info->data[pos] = get_value_use(pfn, view_page);
             }
         } else if (view_mode == 1){
-            for (unsigned long i = 0; i < map_data.valid_count; i++) {
-                uint32_t pfn = map_data.valid_pfns[i];
-                info->data[i] = get_value_zone(pfn);
+            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
+                uint32_t pfn = map_data.sysRAM_pfns[i];
+                uint32_t pos = map_data.sysRAM_pos[i];
+                info->data[pos] = get_value_zone(pfn);
             }
         } else if (view_mode == 2){
-            for (unsigned long i = 0; i < map_data.valid_count; i++) {
-                uint32_t pfn = map_data.valid_pfns[i];
-                info->data[i] = get_value_state(pfn);
+            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
+                uint32_t pfn = map_data.sysRAM_pfns[i];
+                uint32_t pos = map_data.sysRAM_pos[i];
+                info->data[pos] = get_value_state(pfn);
             }
         }
+
         cond_resched();
         view_mode = info->data[INDEX_MODE];
-        view_page = info->data[INDEX_VIEW];
         // Calculo de performance
         iteration ++;
         if(time_after(jiffies, next_second)){
@@ -198,7 +212,7 @@ static int scan_and_store_ram(void)
     unsigned long valid_count = 0;
 
     for (pfn = 0; pfn < MAX_SCAN_PFN; pfn++) {
-        if (pfn_valid(pfn) && page_is_ram(pfn)) {
+        if (page_is_ram(pfn)) {
             valid_count++;
         }
         if ((pfn % 32768) == 0) cond_resched();
@@ -209,22 +223,32 @@ static int scan_and_store_ram(void)
         return -EINVAL;
     }
 
-    map_data.valid_pfns = vmalloc(valid_count * sizeof(uint32_t));
-    if (!map_data.valid_pfns) {
-        pr_err("Error: No hay memoria para valid_pfns\n");
+    map_data.sysRAM_pfns = vmalloc(valid_count * sizeof(uint32_t));
+    map_data.sysRAM_pos = vmalloc(valid_count * sizeof(uint32_t));
+    if (!map_data.sysRAM_pfns) {
+        pr_err("Error: No hay memoria para sysRAM_pfns\n");
+        return -ENOMEM;
+    }
+    if (!map_data.sysRAM_pos) {
+        pr_err("Error: No hay memoria para sysRAM_pos\n");
         return -ENOMEM;
     }
 
     map_data.valid_count = 0;
+    map_data.sysRAM_count = 0;
     for (pfn = 0; pfn < MAX_SCAN_PFN; pfn++) {
-        if (pfn_valid(pfn) && page_is_ram(pfn)) {
-            map_data.valid_pfns[map_data.valid_count] = pfn;
+        if (pfn_valid(pfn)){
+            if (page_is_ram(pfn)) {
+                map_data.sysRAM_pfns[map_data.sysRAM_count] = pfn;
+                map_data.sysRAM_pos[map_data.sysRAM_count] = map_data.valid_count;
+                map_data.sysRAM_count++;
+            }
             map_data.valid_count++;
         }
         if ((pfn % 32768) == 0) cond_resched();
     }
 
-    pr_info("Escaneo completo. Total de PFNs: %lu\n", map_data.valid_count);
+    pr_info("Total PFNs: %lu \n", map_data.valid_count);
     return 0;
 }
 
@@ -244,8 +268,6 @@ static int open(struct inode *inode, struct file *filp)
     atomic_set(&info->refcnt,1);
     filp->private_data=info;
 
-
-    memset(info->data, VAL_VOID, BUFFER_SIZE); // todo rojo
     info->thread = kthread_run(update_data_thread, info, "mmap_gen_thread");
     return 0;
 }
@@ -322,9 +344,15 @@ static void myexit(void)
 {
     remove_proc_entry(filename, NULL);
     // Se libera la memoria global al descargar el módulo
-    if (map_data.valid_pfns) {
-        vfree(map_data.valid_pfns);
-        map_data.valid_pfns = NULL;
+    if (map_data.sysRAM_pfns) {
+        vfree(map_data.sysRAM_pfns);
+        map_data.sysRAM_pfns = NULL;
+
+    }
+    if (map_data.sysRAM_pos) {
+        vfree(map_data.sysRAM_pos);
+        map_data.sysRAM_pos = NULL;
+
     }
 }
 
