@@ -43,25 +43,25 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 
 - Verde claro (FREE): Páginas que no tienen referencias activas y están disponibles para ser asignadas.
 
-- Negro: Dentro del bloque que representa la memoria RAM, hay páginas que no entran en ninguna de las categorías anteriores y el kernel las utiliza para realizar otras tareas.
+- Magenta (KERN): Hay páginas que no entran en ninguna de las categorías anteriores y el kernel las utiliza para realizar otras tareas.
 
 #### Vista de zonas
 
 Esta vista muestra la distribución física de la RAM, por lo tanto, es estática y no varía con el tiempo.
 
-- Magenta (Zona DMA): Históricamente, representa los primeros 16 MB de memoria física. Está reservada para hardware antiguo que utiliza un bus de direcciones de 24 bits. La tecnología DMA (Direct Memory Access) permite a estos periféricos transferir datos directamente hacia y desde la RAM sin la intervención constante de la CPU.
+- Rosa (Zona DMA): Históricamente, representa los primeros 16 MB de memoria física. Está reservada para hardware antiguo que utiliza un bus de direcciones de 24 bits. La tecnología DMA (Direct Memory Access) permite a estos periféricos transferir datos directamente hacia y desde la RAM sin la intervención constante de la CPU.
 
-- Cian (Zona DMA32): Espacio que abarca desde los 16 MB y puede extenderse hasta un máximo de 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
+- Gris (Zona DMA32): Espacio que abarca desde los 16 MB y puede extenderse hasta un máximo de 4 GB. Está reservado para garantizar que los dispositivos y controladores limitados a una arquitectura de 32 bits tengan un lugar donde escribir y leer datos mediante DMA.
 
-- Azul (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
+- Cian (Zona Normal): Abarca toda la memoria física restante a partir de los 4 GB. Es el área de trabajo principal del sistema operativo y los procesos de usuario, ya que los procesadores modernos de 64 bits pueden mapearla directamente sin restricciones. Solo cuando las páginas de esta zona se agotan, el kernel recurre a las zonas DMA y DMA32 como respaldo.
 
 #### Vista de estados
 
 Las páginas de usuario pueden ser modificadas y, tras un intervalo, los cambios se sincronizan en el almacenamiento permanente. Esta transición es especialmente visible durante la copia de archivos de gran tamaño.
 
-- Morado (WB): Páginas en transito desde la RAM hacia el disco duro.
+- Celeste (WB): Páginas en transito desde la RAM hacia el disco duro.
 
-- Amarillo (DIRTY): Páginas modificadas en la RAM, pendientes de ser guardarse en disco.
+- Lima (DIRTY): Páginas modificadas en la RAM, pendientes de ser guardarse en disco.
 
 ## Instalar librerias
 

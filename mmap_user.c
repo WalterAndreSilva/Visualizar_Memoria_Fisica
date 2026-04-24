@@ -41,8 +41,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 int main(void)
 {
     int fd;
-    double tiempoAnterio;
-    int conatadorFrames;
+    double previosTime;
+    int frameCounter;
 
     printf("Open %s...\n", pathname);
     fd = open(pathname, O_RDWR | O_SYNC);
@@ -120,8 +120,11 @@ int main(void)
     double total_ram_gb = ((double)total_pages)/262144;
     printf("Paginas totales: %lu \n", total_pages);
 
-    tiempoAnterio = glfwGetTime();
-    conatadorFrames = 0;
+    // Background color
+    glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+
+    previosTime = glfwGetTime();
+    frameCounter = 0;
     while (!glfwWindowShouldClose(window)) {
 
         press_hold_keys(window);
@@ -174,16 +177,16 @@ int main(void)
         glfwPollEvents();
 
         // Calculo FPS
-        double tiempoActual = glfwGetTime();
-        conatadorFrames ++;
-        if (tiempoActual-tiempoAnterio >= 1.0){
-            double fps = conatadorFrames / (tiempoActual-tiempoAnterio);
+        double currentTime = glfwGetTime();
+        frameCounter ++;
+        if (currentTime-previosTime >= 1.0){
+            double fps = frameCounter / (currentTime-previosTime);
             uint8_t akps = map_ptr[INDEX_AKPS]; // actualizaciones del kernel por segundo
-            char titulo[256];
-            snprintf(titulo,sizeof(titulo), "RAM map %.2f GB - FPS: %.1f, AKPS: %hhu",total_ram_gb, fps, akps);
-            glfwSetWindowTitle(window, titulo);
-            tiempoAnterio = tiempoActual;
-            conatadorFrames = 0;
+            char title[128];
+            snprintf(title,sizeof(title), "RAM map %.2f GB - FPS: %.1f, AKPS: %hhu",total_ram_gb, fps, akps);
+            glfwSetWindowTitle(window, title);
+            previosTime = currentTime;
+            frameCounter = 0;
         }
     }
 
