@@ -3,6 +3,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
+#include <linux/math.h>
 #include "share.h"
 
 #define MAX_SCAN_PFN ((MAX_SCAN_GB * 1024 * 1024 * 1024) >> PAGE_SHIFT)
@@ -58,7 +59,7 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
     struct mmap_info *info = (struct mmap_info *)vmf->vma->vm_private_data;
     struct page *page;
 
-    if (vmf->pgoff >= BUFFER_SIZE / PAGE_SIZE) {
+    if (vmf->pgoff >= DIV_ROUND_UP(BUFFER_SIZE, PAGE_SIZE)) {
         return VM_FAULT_SIGBUS;
     }
 
@@ -161,6 +162,14 @@ static int update_data_thread(void *data)
     uint8_t view_mode = 0;
     uint8_t view_page = MASK_ALL;
     unsigned long total_pages = map_data.valid_count;
+
+    if (total_pages > WIDTH*HEIGHT){
+        pr_info("Textura muy pequeña\n");
+        while (!kthread_should_stop()) {
+            cond_resched();
+        }
+        return 0;
+    }
 
     memset(info->data, VAL_VOID, total_pages); // todo rojo
     info->data[INDEX_MODE] = view_mode;
