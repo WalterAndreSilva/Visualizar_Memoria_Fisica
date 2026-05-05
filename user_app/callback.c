@@ -100,37 +100,41 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
             map_ptr[INDEX_MODE] = (map_ptr[INDEX_MODE] == 1)? 0:1;
         } else if (key == GLFW_KEY_S){
             map_ptr[INDEX_MODE] = (map_ptr[INDEX_MODE] == 2)? 0:2;
+        } else if (key == GLFW_KEY_0 ) {
+            if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FREE;
         } else if (key == GLFW_KEY_1 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_FREE;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_RESE;
         } else if (key == GLFW_KEY_2 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_PGTB;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_COMP;
         } else if (key == GLFW_KEY_3 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_RESE;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_SLAB;
         } else if (key == GLFW_KEY_4 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_COMP;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_PGTB;
         } else if (key == GLFW_KEY_5 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_FILE;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FILE;
         } else if (key == GLFW_KEY_6 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_ANON;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ANON;
         } else if (key == GLFW_KEY_7 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_USER;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_USER;
         } else if (key == GLFW_KEY_8 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_KERN;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_KERN;
         } else if (key == GLFW_KEY_X ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            map_ptr[INDEX_VIEW] ^= MASK_ALL;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ALL;
         } else if (key == GLFW_KEY_A) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            if (map_ptr[INDEX_VIEW] ^ MASK_ALL) map_ptr[INDEX_VIEW] = MASK_ALL;
-            else map_ptr[INDEX_VIEW] = 0;
+            uint16_t view_all = *(uint16_t*)(&map_ptr[INDEX_VIEW]);
+            if (view_all ^ MASK_ALL) *(uint16_t*)(&map_ptr[INDEX_VIEW]) = MASK_ALL;
+            else *(uint16_t*)(&map_ptr[INDEX_VIEW]) = 0;
         } else if (key == GLFW_KEY_I) {
             show_info = !show_info;
         } else if (key == GLFW_KEY_R) {

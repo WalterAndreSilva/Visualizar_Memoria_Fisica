@@ -14,7 +14,7 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - **F**: Activar o desactivar la pantalla completa.
 - **R**: Resetear posicion y zoom.
 - **I**: Mostrar la información de las páginas.
-- **1-8**: Mostrar u ocultar la categoría de la página.
+- **0-8**: Mostrar u ocultar la categoría de la página.
 - **A**: Seleccionar todas las páginas o ninguna.
 - **X**: Invertir la selección actual.
 - **Z**: Alternar entre la vistas y a que zona pertenece.
@@ -31,6 +31,8 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 
 - Azul (RESE): Páginas reservadas exclusivamente por el Kernel. Incluye la imagen binaria del kernel y sus estructuras esenciales.
 
+- Verde azulado (SLAB): Paginas utilizadas por el gestor de memoria Slab.
+
 - Verde oscuro (PGTB): Páginas destinadas al almacenamiento de las Page Tables (tablas de páginas), necesarias para la traducción de direcciones.
 
 - Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar Huge Pages. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
@@ -44,6 +46,8 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - Verde claro (FREE): Páginas que no tienen referencias activas y están disponibles para ser asignadas.
 
 - Magenta (KERN): Hay páginas que no entran en ninguna de las categorías anteriores y el kernel las utiliza para realizar otras tareas.
+
+Al desactivar una categoría, se puede observar a qué otra categoría pertenece la página.
 
 #### Vista de zonas
 

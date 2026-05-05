@@ -92,53 +92,64 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
     return 0;
 }
 
-static inline uint8_t get_value_use(uint32_t pfn, uint8_t view_page)
+static inline uint8_t get_value_use(uint32_t pfn, uint16_t view_page)
 {
-    uint8_t value = VAL_UNKN;
     struct page *page = pfn_to_page(pfn);
+    struct folio *folio = page_folio(page);
 
-    //  Sin referencias : page->_refcount = 0
-    if (page_count(page) == 0){
-        if(view_page & MASK_FREE) value = VAL_FREE;
-
-    } else if (folio_test_pgtable(page_folio(page))){
-        if(view_page & MASK_PGTB) value = VAL_PGTB;
-
-    } else if (PageReserved(page)){
-        if (view_page & MASK_RESE) value = VAL_RESE;
-
-    } else if (PageCompound(page)) {
-        if(view_page & MASK_COMP) value = VAL_COMP;
-
-    // --- USERSPACE ----
-    } else if (folio_test_lru(page_folio(page))) {
-        if (folio_test_anon(page_folio(page))){
-            if(view_page & MASK_ANON) value = VAL_ANON;
-
-        } else {
-            if(view_page & MASK_FILE) value = VAL_FILE;
-        }
-    } else if (page_mapped(page)){
-        if(view_page & MASK_USER) value = VAL_USER;
-    }else{
-        if(view_page & MASK_KERN) value = VAL_KERN;
+    if (PageReserved(page)) {
+        if (view_page & MASK_RESE) return VAL_RESE;
     }
 
-    return value;
+    // RARO: los slab tiene page_count == 0 y los detecta como free
+    if (page_count(page)==0 && !folio_test_slab(folio)) {
+        if (view_page & MASK_FREE) return VAL_FREE;
+        return VAL_UNKN;
+    }
 
+    if(folio_test_slab(folio)){
+        if (view_page & MASK_SLAB) return VAL_SLAB;
+    }
+
+    if (PageCompound(page)) {
+        if (view_page & MASK_COMP) return VAL_COMP;
+    }
+
+    if (folio_test_pgtable(folio)) {
+        if (view_page & MASK_PGTB) return VAL_PGTB;
+    }
+
+    if (folio_test_lru(folio)) {
+        if (folio_test_anon(folio)) {
+            if (view_page & MASK_ANON) return VAL_ANON;
+        } else {
+            if (view_page & MASK_FILE) return VAL_FILE;
+        }
+    }
+
+    if (page_mapped(page)) {
+        if (view_page & MASK_USER) return VAL_USER;
+    }
+
+    // problema con las paginas slab
+    if ((page_count(page)>0 || folio_test_slab(folio)) && !folio_test_lru(folio) && !page_mapped(page)) {
+        if (view_page & MASK_KERN) return VAL_KERN;
+    }
+
+    return VAL_UNKN;
 }
 
 static inline uint8_t get_value_zone(uint32_t pfn)
 {
     uint8_t value = VAL_UNKN;
     struct page *page = pfn_to_page(pfn);
+
     // enum zone_type en linux/mmzone.h
     int zone_idx = page_zonenum(page);
 
     if (zone_idx == ZONE_DMA) value = VAL_ZONE_DMA;
     else if (zone_idx == ZONE_DMA32) value = VAL_ZONE_DMA32;
     else if (zone_idx == ZONE_NORMAL) value = VAL_ZONE_NORMAL;
-    else if (zone_idx == ZONE_DEVICE) value = VAL_DIRTY;
 
     return value;
 }
@@ -157,14 +168,14 @@ static inline uint8_t get_value_state(uint32_t pfn)
 static int update_data_thread(void *data)
 {
     struct mmap_info *info = (struct mmap_info *)data;
-    uint8_t iteration = 0;
     unsigned long next_second = jiffies + HZ;
+    uint8_t iteration = 0;
     uint8_t view_mode = 0;
-    uint8_t view_page = MASK_ALL;
+    uint16_t view_page = MASK_ALL;
     unsigned long total_pages = map_data.valid_count;
 
-    if (total_pages > WIDTH*HEIGHT){
-        pr_info("Textura muy pequeña\n");
+    if (total_pages > TEXTURE_SIZE){
+        pr_info("Error: Cantidad de paginas superior a la textura\n");
         while (!kthread_should_stop()) {
             cond_resched();
         }
@@ -173,7 +184,7 @@ static int update_data_thread(void *data)
 
     memset(info->data, VAL_VOID, total_pages); // todo rojo
     info->data[INDEX_MODE] = view_mode;
-    info->data[INDEX_VIEW] = view_page;
+    *(uint16_t*)(&info->data[INDEX_VIEW]) = view_page;
     for (int i = 0; i < 8; i++) {
         info->data[INDEX_TOTAL_PAGES+i] = (total_pages >> (i*8)) & 0xFF;
     }
@@ -183,7 +194,7 @@ static int update_data_thread(void *data)
             for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
                 uint32_t pfn = map_data.sysRAM_pfns[i];
                 uint32_t pos = map_data.sysRAM_pos[i];
-                view_page = info->data[INDEX_VIEW];
+                view_page = *(uint16_t*)(&info->data[INDEX_VIEW]);
                 info->data[pos] = get_value_use(pfn, view_page);
             }
         } else if (view_mode == 1){
@@ -278,6 +289,13 @@ static int open(struct inode *inode, struct file *filp)
     filp->private_data=info;
 
     info->thread = kthread_run(update_data_thread, info, "mmap_gen_thread");
+    if (IS_ERR(info->thread)) {
+        int err = PTR_ERR(info->thread);
+        vfree(info->data);
+        kfree(info);
+        pr_err("Error al crear el hilo\n");
+        return err;
+    }
     return 0;
 }
 
@@ -299,19 +317,6 @@ static ssize_t read(struct file *filp, char __user *buf, size_t len, loff_t *off
         }
     }
     return ret;
-}
-
-static ssize_t write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
-{
-    struct mmap_info *info;
-
-    pr_info("write\n");
-    info = filp->private_data;
-    if (copy_from_user(info->data, buf, min(len, (size_t)BUFFER_SIZE))) {
-        return -EFAULT;
-    } else {
-        return len;
-    }
 }
 
 static int release(struct inode *inode, struct file *filp)
@@ -337,7 +342,6 @@ static const struct proc_ops fops = {
     .proc_open = open,
     .proc_release = release,
     .proc_read = read,
-    .proc_write = write,
 };
 
 static int myinit(void)
@@ -367,6 +371,7 @@ static void myexit(void)
 
 module_init(myinit)
 module_exit(myexit)
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Módulo para escanear memoria RAM física y mapearla a userspace");
 MODULE_AUTHOR("Walter André Silva");

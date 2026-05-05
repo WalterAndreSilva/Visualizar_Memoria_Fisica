@@ -9,7 +9,7 @@
 
 // Escaneo de páginas fisicas que pertenecen a la RAM
 // Tiene que ser superior al tamaño real (16 GB)
-// Hay páginas fisicas que no estan en la RAM.
+// Hay PFN en direcciones fisicas superiores a la RAM teorica.
 #define MAX_RAM_SCAN_GB 32ULL
 
 // V-SYNC: 0 = desactivado, 1 = activado (max 60fps generalmente)
