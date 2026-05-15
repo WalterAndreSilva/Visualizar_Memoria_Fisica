@@ -77,20 +77,23 @@ void scroll_callback_fun(double yoffset)
 
 void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
 {
+    if (!map_ptr) return;
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_Q){
             glfwSetWindowShouldClose(window, 1);
         } else if (key == GLFW_KEY_F) {
             if (!is_fullscreen) {
-                // Guardar la posición y tamaño actual de la ventana
                 glfwGetWindowPos(window, &win_x, &win_y);
                 glfwGetWindowSize(window, &win_w, &win_h);
-                // Obtener el monitor principal y su resolución actual
+
                 GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-                const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-                // Pasar a pantalla completa
-                glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-                is_fullscreen = 1;
+                if (monitor) {
+                    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+                    if (mode) {
+                        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+                        is_fullscreen = 1;
+                    }
+                }
             } else {
                 // Restaurar al modo ventana utilizando las dimensiones guardadas
                 glfwSetWindowMonitor(window, NULL, win_x, win_y, win_w, win_h, 0);

@@ -55,15 +55,23 @@ int main(void)
 
     // Obtenemos el monitor principal y su resolución para arrancar maximizados
     GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+    const GLFWvidmode* mode = NULL;
 
-    // Le pasamos el monitor para que tome control exclusivo de la pantalla
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "RAM map", primary_monitor, NULL);
-    if (!window) {
-        glfwTerminate();
-        return -1;
+    if (primary_monitor) {
+        mode = glfwGetVideoMode(primary_monitor);
     }
 
+    int start_width = mode ? mode->width : 800;
+    int start_height = mode ? mode->height : 800;
+
+    GLFWwindow* window = glfwCreateWindow(start_width, start_height, "RAM map", primary_monitor, NULL);
+
+    if (!window) {
+        fprintf(stderr, "Error al crear la ventana GLFW.\n");
+        glfwTerminate();
+        close(fd);
+        return -1;
+    }
     glfwMakeContextCurrent(window);
 
     // Registrar callbacks del ratón
