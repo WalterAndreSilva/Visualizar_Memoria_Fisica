@@ -97,21 +97,29 @@ static inline uint8_t get_value_use(uint32_t pfn, uint16_t view_page)
     struct page *page = pfn_to_page(pfn);
     struct folio *folio = page_folio(page);
 
-    if (PageReserved(page)) {
-        if (view_page & MASK_RESE) return VAL_RESE;
+    if (folio_ref_count(folio) == 0      &&   // contador de referencias
+        !folio_test_slab(folio)){             // no es slab
+            if (view_page & MASK_FREE) return VAL_FREE;
+            return VAL_UNKN;
     }
 
-    // RARO: los slab tiene page_count == 0 y los detecta como free
-    if (page_count(page)==0 && !folio_test_slab(folio)) {
-        if (view_page & MASK_FREE) return VAL_FREE;
-        return VAL_UNKN;
+    if (folio_test_reserved(folio)) {
+        if (view_page & MASK_RESE) return VAL_RESE;
     }
 
     if(folio_test_slab(folio)){
         if (view_page & MASK_SLAB) return VAL_SLAB;
     }
 
-    if (PageCompound(page)) {
+    if (folio_test_hugetlb(folio)){ //huge
+        if (view_page & MASK_HUGE) return VAL_HUGE;
+    }
+
+    if (folio_order(folio) >= 9 && !folio_test_hugetlb(folio)){  //THP
+        if (view_page & MASK_THP) return VAL_THP;
+    }
+
+    if (folio_test_large(folio)) {  // comp menores a 2MB
         if (view_page & MASK_COMP) return VAL_COMP;
     }
 
@@ -127,12 +135,13 @@ static inline uint8_t get_value_use(uint32_t pfn, uint16_t view_page)
         }
     }
 
-    if (page_mapped(page)) {
+    if (folio_mapped(folio)) {
         if (view_page & MASK_USER) return VAL_USER;
     }
 
-    // problema con las paginas slab
-    if ((page_count(page)>0 || folio_test_slab(folio)) && !folio_test_lru(folio) && !page_mapped(page)) {
+    if ((folio_ref_count(folio)>0 || folio_test_slab(folio)) &&
+        !folio_test_lru(folio) &&
+        !folio_mapped(folio)) {
         if (view_page & MASK_KERN) return VAL_KERN;
     }
 
@@ -141,28 +150,27 @@ static inline uint8_t get_value_use(uint32_t pfn, uint16_t view_page)
 
 static inline uint8_t get_value_zone(uint32_t pfn)
 {
-    uint8_t value = VAL_UNKN;
     struct page *page = pfn_to_page(pfn);
+    struct folio *folio = page_folio(page);
 
-    // enum zone_type en linux/mmzone.h
-    int zone_idx = page_zonenum(page);
+    int zone_idx = folio_zonenum(folio);
 
-    if (zone_idx == ZONE_DMA) value = VAL_ZONE_DMA;
-    else if (zone_idx == ZONE_DMA32) value = VAL_ZONE_DMA32;
-    else if (zone_idx == ZONE_NORMAL) value = VAL_ZONE_NORMAL;
+    if (zone_idx == ZONE_DMA) return VAL_ZONE_DMA;
+    else if (zone_idx == ZONE_DMA32) return VAL_ZONE_DMA32;
+    else if (zone_idx == ZONE_NORMAL) return VAL_ZONE_NORMAL;
 
-    return value;
+    return VAL_UNKN;
 }
 
 static inline uint8_t get_value_state(uint32_t pfn)
 {
-    uint8_t value = VAL_UNKN;
     struct page *page = pfn_to_page(pfn);
+    struct folio *folio = page_folio(page);
 
-    if (PageWriteback(page)) value = VAL_WRITEBACK;
-    else if (PageDirty(page)) value = VAL_DIRTY;
+    if (folio_test_writeback(folio))  return VAL_WRITEBACK;
+    else if (folio_test_dirty(folio)) return VAL_DIRTY;
 
-    return value;
+    return VAL_UNKN;
 }
 
 static int update_data_thread(void *data)

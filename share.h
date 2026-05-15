@@ -12,9 +12,11 @@
 
 #define MASK_FREE (1<<0)
 #define MASK_RESE (1<<1)
-#define MASK_COMP (1<<2)
-#define MASK_SLAB (1<<3)
-#define MASK_PGTB (1<<4)
+#define MASK_SLAB (1<<2)
+#define MASK_HUGE (1<<3)
+#define MASK_THP  (1<<4)
+#define MASK_COMP (1<<5)
+#define MASK_PGTB (1<<6)
 #define MASK_FILE (1<<12)
 #define MASK_ANON (1<<13)
 #define MASK_USER (1<<14)
@@ -68,10 +70,12 @@ static const float palette[16][4] = {
 #define VAL_UNKN COL_BLACK
 #define VAL_VOID COL_RED
 #define VAL_RESE COL_BLUE
-#define VAL_PGTB COL_DARK_GREEN
-#define VAL_COMP COL_YELLOW
-#define VAL_KERN COL_MAGENTA
 #define VAL_SLAB COL_TEAL
+#define VAL_HUGE COL_SKY    //------- cambiar
+#define VAL_THP  COL_PINK   //------- cambiar
+#define VAL_COMP COL_YELLOW
+#define VAL_PGTB COL_DARK_GREEN
+#define VAL_KERN COL_MAGENTA
 
 #define VAL_FILE COL_ORANGE
 #define VAL_ANON COL_PURPLE

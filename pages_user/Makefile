@@ -1,14 +1,13 @@
-# Compilacion del modulo del kernenl y las aplicaciones del usuario
+# Compilacion de las aplicaciones del usuario para pruebas sobre paginas
+CC     = gcc
 CFLAGS = -std=c11 -Wall -Wextra -O2 -march=native
 
-all: pages_anon pages_comp
+TARGETS = pages_anon pages_huge pages_thp
 
-pages_anon: pages_anon.c
-	gcc -o pages_anon pages_anon.c $(CFLAGS)
+all: $(TARGETS)
 
-pages_comp: pages_comp.c
-	gcc -o pages_comp pages_comp.c $(CFLAGS)
+%: %.c
+	$(CC) -o $@ $< $(CFLAGS)
 
 clean:
-	rm -f pages_anon
-	rm -f pages_comp
+	rm -f $(TARGETS)

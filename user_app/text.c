@@ -142,64 +142,86 @@ void show_hud(uint8_t *map_ptr)
     // BLANCO
     uint16_t current_view = *(uint16_t*)(&map_ptr[INDEX_VIEW]);
     snprintf(buffer, sizeof(buffer), "0:          [%s]", (current_view & MASK_FREE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.8f, font_size);
+    draw_text(buffer, -0.94f, 0.75f, font_size);
     snprintf(buffer, sizeof(buffer), "1:          [%s]", (current_view & MASK_RESE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.7f, font_size);
-    snprintf(buffer, sizeof(buffer), "2:          [%s]", (current_view & MASK_COMP) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.6f, font_size);
-    snprintf(buffer, sizeof(buffer), "3:          [%s]", (current_view & MASK_SLAB) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.5f, font_size);
-    snprintf(buffer, sizeof(buffer), "4:          [%s]", (current_view & MASK_PGTB) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.4f, font_size);
-    snprintf(buffer, sizeof(buffer), "5:          [%s]", (current_view & MASK_FILE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.3f, font_size);
-    snprintf(buffer, sizeof(buffer), "6:          [%s]", (current_view & MASK_ANON) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.2f, font_size);
-    snprintf(buffer, sizeof(buffer), "7:          [%s]", (current_view & MASK_USER) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.1f, font_size);
-    snprintf(buffer, sizeof(buffer), "8:          [%s]", (current_view & MASK_KERN) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.0f, font_size);
+    draw_text(buffer, -0.94f, 0.70f, font_size);
+    snprintf(buffer, sizeof(buffer), "2:          [%s]", (current_view & MASK_SLAB) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.65f, font_size);
+    snprintf(buffer, sizeof(buffer), "3:          [%s]", (current_view & MASK_HUGE) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.60f, font_size);
+    snprintf(buffer, sizeof(buffer), "4:          [%s]", (current_view & MASK_THP) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.55f, font_size);
+    snprintf(buffer, sizeof(buffer), "5:          [%s]", (current_view & MASK_COMP) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.50f, font_size);
+    snprintf(buffer, sizeof(buffer), "6:          [%s]", (current_view & MASK_PGTB) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.45f, font_size);
+    snprintf(buffer, sizeof(buffer), "7:          [%s]", (current_view & MASK_FILE) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.40f, font_size);
+    snprintf(buffer, sizeof(buffer), "8:          [%s]", (current_view & MASK_ANON) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.35f, font_size);
+    snprintf(buffer, sizeof(buffer), "9:          [%s]", (current_view & 0) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.30f, font_size);
+    snprintf(buffer, sizeof(buffer), "U:          [%s]", (current_view & MASK_USER) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.25f, font_size);
+    snprintf(buffer, sizeof(buffer), "K:          [%s]", (current_view & MASK_KERN) ? "X" : " ");
+    draw_text(buffer, -0.94f, 0.20f, font_size);
 
     // COLOR
+    glColor4f(palette[VAL_VOID][0], palette[VAL_VOID][1], palette[VAL_VOID][2], palette[VAL_VOID][3]);
+    draw_text("  RESE BIOS", -0.94f, 0.80f, font_size);
     glColor4f(palette[VAL_FREE][0], palette[VAL_FREE][1], palette[VAL_FREE][2], palette[VAL_FREE][3]);
-    draw_text("  FREE", -0.94f, 0.8f, font_size);
+    draw_text("  FREE", -0.94f, 0.75f, font_size);
     glColor4f(palette[VAL_RESE][0], palette[VAL_RESE][1], palette[VAL_RESE][2], palette[VAL_RESE][3]);
-    draw_text("  RESERVED", -0.94f, 0.7f, font_size);
-    glColor4f(palette[VAL_COMP][0], palette[VAL_COMP][1], palette[VAL_COMP][2], palette[VAL_COMP][3]);
-    draw_text("  COMPOUND", -0.94f, 0.6f, font_size);
+    draw_text("  RESERVED", -0.94f, 0.70f, font_size);
     glColor4f(palette[VAL_SLAB][0], palette[VAL_SLAB][1], palette[VAL_SLAB][2], palette[VAL_SLAB][3]);
-    draw_text("  SLAB", -0.94f, 0.5f, font_size);
+    draw_text("  SLAB", -0.94f, 0.65f, font_size);
+    glColor4f(palette[VAL_HUGE][0], palette[VAL_HUGE][1], palette[VAL_HUGE][2], palette[VAL_HUGE][3]);
+    draw_text("  HUGE", -0.94f, 0.60f, font_size);
+    glColor4f(palette[VAL_THP][0], palette[VAL_THP][1], palette[VAL_THP][2], palette[VAL_THP][3]);
+    draw_text("  THP", -0.94f, 0.55f, font_size);
+    glColor4f(palette[VAL_COMP][0], palette[VAL_COMP][1], palette[VAL_COMP][2], palette[VAL_COMP][3]);
+    draw_text("  COMPOUND", -0.94f, 0.50f, font_size);
     glColor4f(palette[VAL_PGTB][0], palette[VAL_PGTB][1], palette[VAL_PGTB][2], palette[VAL_PGTB][3]);
-    draw_text("  PGTB", -0.94f, 0.4f, font_size);
+    draw_text("  PGTB", -0.94f, 0.45f, font_size);
     glColor4f(palette[VAL_FILE][0], palette[VAL_FILE][1], palette[VAL_FILE][2], palette[VAL_FILE][3]);
-    draw_text("  FILE", -0.94f, 0.3f, font_size);
+    draw_text("  FILE", -0.94f, 0.40f, font_size);
     glColor4f(palette[VAL_ANON][0], palette[VAL_ANON][1], palette[VAL_ANON][2], palette[VAL_ANON][3]);
-    draw_text("  ANONYMOUS", -0.94f, 0.2f, font_size);
+    draw_text("  ANONYMOUS", -0.94f, 0.35f, font_size);
+    glColor4f(palette[VAL_ANON][0], palette[0][1], palette[0][2], palette[0][3]);
+    draw_text("  ", -0.94f, 0.30f, font_size);
     glColor4f(palette[VAL_USER][0], palette[VAL_USER][1], palette[VAL_USER][2], palette[VAL_USER][3]);
-    draw_text("  USER", -0.94f, 0.1f, font_size);
+    draw_text("  USER", -0.94f, 0.25f, font_size);
     glColor4f(palette[VAL_KERN][0], palette[VAL_KERN][1], palette[VAL_KERN][2], palette[VAL_KERN][3]);
-    draw_text("  KERNEL", -0.94f, 0.0f, font_size);
+    draw_text("  KERNEL", -0.94f, 0.20f, font_size);
 
 
     glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
 
-    draw_text("A:SELECT ALL", -0.94f, -0.1f, font_size);
-    draw_text("X:INV SELECT", -0.94f, -0.2f, font_size);
-    draw_text("Z:VIEW ZONE",  -0.94f, -0.3f, font_size);
+    draw_text("A:SELECT ALL", -0.94f, 0.10f, font_size);
+    draw_text("X:INV SELECT", -0.94f, 0.05f, font_size);
 
+    draw_text("Z:VIEW ZONE",  -0.94f, -0.05f, font_size);
     glColor4f(palette[VAL_ZONE_DMA][0], palette[VAL_ZONE_DMA][1], palette[VAL_ZONE_DMA][2], palette[VAL_ZONE_DMA][3]);
-    draw_text("  DMA", -0.94f, -0.4f, font_size);
+    draw_text("  DMA", -0.94f, -0.10f, font_size);
     glColor4f(palette[VAL_ZONE_DMA32][0], palette[VAL_ZONE_DMA32][1], palette[VAL_ZONE_DMA32][2], palette[VAL_ZONE_DMA32][3]);
-    draw_text("  DMA32", -0.94f, -0.5f, font_size);
+    draw_text("  DMA32", -0.94f, -0.15f, font_size);
     glColor4f(palette[VAL_ZONE_NORMAL][0], palette[VAL_ZONE_NORMAL][1], palette[VAL_ZONE_NORMAL][2], palette[VAL_ZONE_NORMAL][3]);
-    draw_text("  NORMAL", -0.94f, -0.6f, font_size);
+    draw_text("  NORMAL", -0.94f, -0.20f, font_size);
 
     glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
 
-    draw_text("S:VIEW STATE", -0.94f, -0.7f, font_size);
-
+    draw_text("S:VIEW STATE", -0.94f, -0.30f, font_size);
     glColor4f(palette[VAL_WRITEBACK][0], palette[VAL_WRITEBACK][1], palette[VAL_WRITEBACK][2], palette[VAL_WRITEBACK][3]);
-    draw_text("  WRITEBACK", -0.94f, -0.8f, font_size);
+    draw_text("  WRITEBACK", -0.94f, -0.35f, font_size);
     glColor4f(palette[VAL_DIRTY][0], palette[VAL_DIRTY][1], palette[VAL_DIRTY][2], palette[VAL_DIRTY][3]);
-    draw_text("  DIRTY", -0.94f, -0.9f, font_size);
+    draw_text("  DIRTY", -0.94f, -0.40f, font_size);
+
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+
+    draw_text("E:MORE ZOOM", -0.94f, -0.60f, font_size);
+    draw_text("D:LESS ZOOM", -0.94f, -0.65f, font_size);
+    draw_text("ARROW:MOVE", -0.94f, -0.70f, font_size);
+    draw_text("R:RESET VIEW", -0.94f, -0.75f, font_size);
+    draw_text("F:FULL SCREEN ", -0.94f, -0.85f, font_size);
+    draw_text("Q:QUIT ", -0.94f, -0.90f, font_size);
 }

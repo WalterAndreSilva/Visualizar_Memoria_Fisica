@@ -78,7 +78,7 @@ void scroll_callback_fun(double yoffset)
 void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
 {
     if (action == GLFW_PRESS) {
-        if (key == GLFW_KEY_ESCAPE){
+        if (key == GLFW_KEY_Q){
             glfwSetWindowShouldClose(window, 1);
         } else if (key == GLFW_KEY_F) {
             if (!is_fullscreen) {
@@ -108,23 +108,29 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
             *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_RESE;
         } else if (key == GLFW_KEY_2 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_COMP;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_SLAB;
         } else if (key == GLFW_KEY_3 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_SLAB;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_HUGE;
         } else if (key == GLFW_KEY_4 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_PGTB;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_THP;
         } else if (key == GLFW_KEY_5 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FILE;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_COMP;
         } else if (key == GLFW_KEY_6 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ANON;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_PGTB;
         } else if (key == GLFW_KEY_7 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_USER;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FILE;
         } else if (key == GLFW_KEY_8 ) {
+            if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ANON;
+        } else if (key == GLFW_KEY_U ) {
+            if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_USER;
+        } else if (key == GLFW_KEY_K ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
             *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_KERN;
         } else if (key == GLFW_KEY_X ) {
@@ -135,7 +141,7 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
             uint16_t view_all = *(uint16_t*)(&map_ptr[INDEX_VIEW]);
             if (view_all ^ MASK_ALL) *(uint16_t*)(&map_ptr[INDEX_VIEW]) = MASK_ALL;
             else *(uint16_t*)(&map_ptr[INDEX_VIEW]) = 0;
-        } else if (key == GLFW_KEY_I) {
+        } else if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_I) {
             show_info = !show_info;
         } else if (key == GLFW_KEY_R) {
             zoom = 1.0f;
@@ -147,8 +153,8 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
 
 void press_hold_keys(GLFWwindow* window)
 {
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS &&  zoom > MIN_ZOOM) zoom /= 1.02f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS &&  zoom < MAX_ZOOM) zoom *= 1.02f;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS &&  zoom > MIN_ZOOM) zoom /= 1.02f;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS &&  zoom < MAX_ZOOM) zoom *= 1.02f;
 
     float panSpeed = 0.02f / zoom;
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS && offsetY >= MIN_Y) offsetY -= panSpeed;

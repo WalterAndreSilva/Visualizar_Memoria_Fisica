@@ -13,13 +13,16 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 
 - **F**: Activar o desactivar la pantalla completa.
 - **R**: Resetear posicion y zoom.
-- **I**: Mostrar la información de las páginas.
-- **0-8**: Mostrar u ocultar la categoría de la página.
+- **I** o **ESC**: Mostrar la información de las páginas.
+- **Q**: Cerrar aplicacion.
+- **0-9**: Mostrar u ocultar la categoría de la página.
+- **U**: Usuario
+- **K**: Kernel
 - **A**: Seleccionar todas las páginas o ninguna.
 - **X**: Invertir la selección actual.
 - **Z**: Alternar entre la vistas y a que zona pertenece.
 - **S**: Mostrar estado de la página.
-- **W** y **E**: teclas auxiliares para hacer zoom.
+- **D** y **E**: teclas auxiliares para hacer zoom.
 - **Teclas de dirección**: Desplazarse por la textura.
 
 
@@ -34,6 +37,10 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - Verde azulado (SLAB): Paginas utilizadas por el gestor de memoria Slab.
 
 - Verde oscuro (PGTB): Páginas destinadas al almacenamiento de las Page Tables (tablas de páginas), necesarias para la traducción de direcciones.
+
+- Hugetlbfs: Páginas gigantes manejadas por el kernel generalmente. Requiere root y no se puede partir.
+
+- Transparent Huge Pages (THP): Se pueden solicitar con madvise(). Son mas grande que 2MB (orden 9 -> 2^9 = 512 paginas * 4KB = 2MB)
 
 - Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar Huge Pages. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
 
@@ -119,6 +126,20 @@ $ sudo ./mmap_user
 
 ```bash
 $ sudo ./full_mem
+```
+### informacion de paginas
+
+Páginas compuestas
+
+```bash
+grep -i huge /proc/meminfo
+```
+
+Páginas slab (no se puede acceder desde el programa, structuras ocultas)
+Se necesita recompilar el kernel completo para acceder a la informacion.
+
+```bash
+sudo cat /proc/slabinfo
 ```
 
 ## Fuentes 
