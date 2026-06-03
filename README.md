@@ -122,11 +122,7 @@ $ sudo dmesg | tail
 ```bash
 $ sudo ./mmap_user
 ```
-### Ejecutar programa que llena la memoria: 
 
-```bash
-$ sudo ./full_mem
-```
 ### informacion de paginas
 
 Páginas compuestas

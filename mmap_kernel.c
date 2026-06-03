@@ -5,8 +5,11 @@
 #include <linux/vmalloc.h>
 #include <linux/math.h>
 #include "share.h"
+#include <linux/ktime.h>
+#include <linux/delay.h>
 
 #define MAX_SCAN_PFN ((MAX_SCAN_GB * 1024 * 1024 * 1024) >> PAGE_SHIFT)
+#define ONE_SECOND 1000000000ULL
 
 static const char *filename = "ku_mmap";
 
@@ -176,11 +179,13 @@ static inline uint8_t get_value_state(uint32_t pfn)
 static int update_data_thread(void *data)
 {
     struct mmap_info *info = (struct mmap_info *)data;
-    unsigned long next_second = jiffies + HZ;
+    ktime_t next_frame;
+    ktime_t next_second_ktime;
     uint8_t iteration = 0;
     uint8_t view_mode = 0;
     uint16_t view_page = MASK_ALL;
     unsigned long total_pages = map_data.valid_count;
+    u64 frame_time_ns = ONE_SECOND / MAX_UPDATE_KERN;
 
     if (total_pages > TEXTURE_SIZE){
         pr_info("Error: Cantidad de paginas superior a la textura\n");
@@ -190,12 +195,15 @@ static int update_data_thread(void *data)
         return 0;
     }
 
-    memset(info->data, VAL_VOID, total_pages); // todo rojo
+    memset(info->data, VAL_VOID, total_pages);
     info->data[INDEX_MODE] = view_mode;
     *(uint16_t*)(&info->data[INDEX_VIEW]) = view_page;
     for (int i = 0; i < 8; i++) {
         info->data[INDEX_TOTAL_PAGES+i] = (total_pages >> (i*8)) & 0xFF;
     }
+
+    next_frame = ktime_get();
+    next_second_ktime = ktime_add_ns(next_frame, ONE_SECOND);
 
     while (!kthread_should_stop()) {
         if (view_mode == 0){
@@ -218,16 +226,23 @@ static int update_data_thread(void *data)
                 info->data[pos] = get_value_state(pfn);
             }
         }
-
-        cond_resched();
         view_mode = info->data[INDEX_MODE];
-        // Calculo de performance
+
+        next_frame = ktime_add_ns(next_frame, frame_time_ns);
+        ktime_t now = ktime_get();
+        if (ktime_before(now, next_frame)) {
+            u64 sleep_us = ktime_to_ns(ktime_sub(next_frame, now)) / 1000;
+            usleep_range(sleep_us, sleep_us + 1000);
+        } else {
+            next_frame = now;
+            cond_resched();
+        }
+
         iteration ++;
-        if(time_after(jiffies, next_second)){
-            //pr_info("actualizaciones por segundo: %hhu", iteration);
+        if (ktime_after(ktime_get(), next_second_ktime)) {
             info->data[INDEX_AKPS] = iteration;
             iteration = 0;
-            next_second = jiffies + HZ;
+            next_second_ktime = ktime_add_ns(next_second_ktime, ONE_SECOND);
         }
     }
     return 0;

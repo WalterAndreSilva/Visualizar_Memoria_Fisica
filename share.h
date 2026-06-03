@@ -25,7 +25,18 @@
 #define MASK_ALL  ((uint16_t)~0)
 
 #define MAX_SCAN_GB MAX_RAM_SCAN_GB
-#define V_SYNC V_SYNC_ACTIVE
+
+#if V_SYNC_ACTIVE == 0
+#define V_SYNC 0
+#else
+#define V_SYNC 1
+#endif
+
+#if MAX_UPDATE_KERN_SEC <= 0
+#define MAX_UPDATE_KERN 1
+#else
+#define MAX_UPDATE_KERN MAX_UPDATE_KERN_SEC
+#endif
 
 // Codigo de color
 typedef enum {

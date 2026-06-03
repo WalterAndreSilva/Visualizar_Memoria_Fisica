@@ -2,7 +2,7 @@
 #define CONF_H
 
 // --- AJUSTES PARA 16 GB DE RAM ---
-// 16 GB = 4,194,304 páginas.
+// 16 GB = (16*2^30)/4096 = 4,194,304 páginas.
 // 2048x2048 = 4,194,304 píxeles.
 #define WIDTH 2048
 #define HEIGHT 2048
@@ -14,5 +14,9 @@
 
 // V-SYNC: 0 = desactivado, 1 = activado (max 60fps generalmente)
 #define V_SYNC_ACTIVE 1
+
+// Cantidad maxima de acualizaciones del kernel por segundo
+// Valor minimo = 1
+#define MAX_UPDATE_KERN_SEC 100
 
 #endif
