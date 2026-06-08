@@ -3,7 +3,7 @@
 
 ## Descripción General
 
-Este proyecto consiste en una herramienta diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica interactiva. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización, se puede modificar el archivo `conf.h`.
+Este proyecto consiste en una herramienta diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica interactiva. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización y grabacion, se puede modificar el archivo `conf.h`.
 
 El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, responsable de clasificar las páginas y mantener la información actualizada. Al inicializarse, el módulo recorre todos los Page Frame Numbers (PFN) y almacena aquellos marcados como memoria RAM. Cabe destacar que esta cantidad detectada es menor que la capacidad teórica de la RAM, ya que la BIOS reserva regiones de memoria durante la creación del mapa de memoria (BIOS-e820). Este mapa de memoria se puede observar en el archivo /proc/iomem. En la representación gráfica, la memoria reservada por la BIOS se muestra en color rojo.
 
@@ -76,6 +76,7 @@ Las páginas de usuario pueden ser modificadas y, tras un intervalo, los cambios
 
 ## Instalar librerias
 
+### Ubuntu
 Instalar las herramientas esenciales y los encabezados del kernel actual: 
 ```bash
 $ sudo apt update && sudo apt install build-essential linux-headers-$(uname -r)
@@ -89,9 +90,27 @@ Instalar GLEW para ejecutar shader en la tarjeta grafica.
 $ sudo apt-get install libglew-dev 
 ```
 
+### Fedora
+Instalar las herramientas esenciales para la compilación.
+```bash
+$ sudo dnf group install development-tools
+```
+Instalar los encabezados del kernel actual. 
+```bash
+$ sudo dnf install kernel-devel-$(uname -r) kernel-headers
+```
+Instalar librerias de OpenGL (Normalmente preinstalado en Fedora).
+```bash
+$ sudo dnf install mesa-libGL-devel
+```
+Instalar GLEW y GLFW.
+```bash
+$ sudo dnf install glew-devel glfw-devel
+```
+
 ## Compilacion 
 
-Se incluye un Makefile que automatiza la compilación tanto del módulo del kernel como de las herramientas de usuario. Esto abarca la aplicación gráfica de visualización y un programa de prueba diseñado para llenar la memoria con datos aleatorios.
+Se incluye un Makefile que automatiza la compilación tanto del módulo del kernel como de la herramienta grafica de usuario.
 
 ## Ejecutar el programa
 
@@ -123,7 +142,10 @@ $ sudo dmesg | tail
 $ sudo ./mmap_user
 ```
 
-### informacion de paginas
+Tambien se incluye un archivo run.sh que agiliza el proceso de compilar, cargar modulo, ejecutar app del usuario, descargar modulo y limpieza de archivos de compilacion. 
+
+
+### Informacion de paginas
 
 Páginas compuestas
 

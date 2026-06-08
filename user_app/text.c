@@ -92,8 +92,10 @@ void draw_text(const char* text, float start_x, float start_y, float size)
     glEnd();
 }
 
-void show_hud(uint8_t *map_ptr)
+void show_hud(uint8_t *map_ptr, double fps)
 {
+    uint8_t akps = map_ptr[INDEX_AKPS]; // actualizaciones del kernel por segundo
+
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -106,7 +108,8 @@ void show_hud(uint8_t *map_ptr)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Fondo semitransparente
+    // CUADRADO IZQUIERDO
+
     // Rango X: -0.98 hasta -0.6
     glColor4f(0.1f, 0.1f, 0.1f, 0.9f);
     glBegin(GL_QUADS);
@@ -222,6 +225,45 @@ void show_hud(uint8_t *map_ptr)
     draw_text("D:LESS ZOOM", -0.94f, -0.65f, font_size);
     draw_text("ARROW:MOVE", -0.94f, -0.70f, font_size);
     draw_text("R:RESET VIEW", -0.94f, -0.75f, font_size);
-    draw_text("F:FULL SCREEN ", -0.94f, -0.85f, font_size);
+
+    if (CAPT_VIDEO == 0) draw_text("F:FULL SCREEN ", -0.94f, -0.85f, font_size);
     draw_text("Q:QUIT ", -0.94f, -0.90f, font_size);
+
+    // CUADRADO DERECHO
+
+    // Rango X: 0.98 hasta 0.6
+    glColor4f(0.1f, 0.1f, 0.1f, 0.9f);
+    glBegin(GL_QUADS);
+    glVertex2f(0.98f, 0.50f);
+    glVertex2f(0.60f, 0.50f);
+    glVertex2f(0.60f, 0.90f);
+    glVertex2f(0.98f, 0.90f);
+    glEnd();
+
+    // Borde
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(0.98f, 0.50f);
+    glVertex2f(0.60f, 0.50f);
+    glVertex2f(0.60f, 0.90f);
+    glVertex2f(0.98f, 0.90f);
+    glEnd();
+
+    // Texto
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+
+    snprintf(buffer, sizeof(buffer), "AKPS: %d", akps);
+    draw_text(buffer, 0.65f, 0.80f, font_size);
+
+    snprintf(buffer, sizeof(buffer), "FPS: %.1f", fps);
+    draw_text(buffer, 0.65f, 0.75f, font_size);
+
+    if(CAPT_VIDEO){
+        snprintf(buffer, sizeof(buffer), "REC [%d FPS]", TARGET_FPS);
+        draw_text(buffer, 0.65f, 0.65f, font_size);
+    } else{
+        draw_text("NO REC", 0.65f, 0.65f, font_size);
+    }
+
 }

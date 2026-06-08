@@ -38,6 +38,14 @@
 #define MAX_UPDATE_KERN MAX_UPDATE_KERN_SEC
 #endif
 
+#if CAPTURE_VIDEO == 1
+#define CAPT_VIDEO 1
+#else
+#define CAPT_VIDEO 0
+#endif
+
+#define TARGET_FPS TARGET_FPS_REC
+
 // Codigo de color
 typedef enum {
     COL_BLACK,
@@ -77,13 +85,13 @@ static const float palette[16][4] = {
     {0.0, 0.5, 0.4, 1.0}  // COL_TEAL
 };
 
-// seleccion de color para la vista
+// Seleccion de color para la vista
 #define VAL_UNKN COL_BLACK
 #define VAL_VOID COL_RED
 #define VAL_RESE COL_BLUE
 #define VAL_SLAB COL_TEAL
-#define VAL_HUGE COL_SKY    //------- cambiar
-#define VAL_THP  COL_PINK   //------- cambiar
+#define VAL_HUGE COL_SKY
+#define VAL_THP  COL_PINK
 #define VAL_COMP COL_YELLOW
 #define VAL_PGTB COL_DARK_GREEN
 #define VAL_KERN COL_MAGENTA

@@ -75,30 +75,35 @@ void scroll_callback_fun(double yoffset)
     if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
 }
 
+void switch_fullscreen_windowed(GLFWwindow* window){
+    if (!is_fullscreen) {
+        glfwGetWindowPos(window, &win_x, &win_y);
+        glfwGetWindowSize(window, &win_w, &win_h);
+
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        if (monitor) {
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            if (mode) {
+                glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+                is_fullscreen = 1;
+            }
+        }
+    } else {
+        // Restaurar al modo ventana utilizando las dimensiones guardadas
+        glfwSetWindowMonitor(window, NULL, win_x, win_y, win_w, win_h, 0);
+        is_fullscreen = 0;
+    }
+}
+
 void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
 {
     if (!map_ptr) return;
+
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_Q){
             glfwSetWindowShouldClose(window, 1);
         } else if (key == GLFW_KEY_F) {
-            if (!is_fullscreen) {
-                glfwGetWindowPos(window, &win_x, &win_y);
-                glfwGetWindowSize(window, &win_w, &win_h);
-
-                GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-                if (monitor) {
-                    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-                    if (mode) {
-                        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-                        is_fullscreen = 1;
-                    }
-                }
-            } else {
-                // Restaurar al modo ventana utilizando las dimensiones guardadas
-                glfwSetWindowMonitor(window, NULL, win_x, win_y, win_w, win_h, 0);
-                is_fullscreen = 0;
-            }
+            if (CAPT_VIDEO == 0) switch_fullscreen_windowed(window);
         } else if (key == GLFW_KEY_Z){
             map_ptr[INDEX_MODE] = (map_ptr[INDEX_MODE] == 1)? 0:1;
         } else if (key == GLFW_KEY_S){
