@@ -174,6 +174,8 @@ void press_hold_keys(GLFWwindow* window)
 
 void apply_transformation()
 {
+    #if !FORCE_WIN_TEXTURE
     glScalef(zoom, zoom, 1.0f);
     glTranslatef(offsetX, offsetY, 0.0f);
+    #endif
 }

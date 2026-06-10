@@ -240,7 +240,7 @@ static int update_data_thread(void *data)
 
         iteration ++;
         if (ktime_after(ktime_get(), next_second_ktime)) {
-            info->data[INDEX_AKPS] = iteration;
+            info->data[INDEX_KUPS] = iteration;
             iteration = 0;
             next_second_ktime = ktime_add_ns(next_second_ktime, ONE_SECOND);
         }

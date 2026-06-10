@@ -12,9 +12,6 @@
 // Hay PFN en direcciones fisicas superiores a la RAM teorica.
 #define MAX_RAM_SCAN_GB 32ULL
 
-// V-SYNC: 0 = desactivado, 1 = activado (max 60fps generalmente)
-#define V_SYNC_ACTIVE 1
-
 // Cantidad maxima de acualizaciones del kernel por segundo
 // Valor minimo = 1
 #define MAX_UPDATE_KERN_SEC 100
@@ -29,5 +26,10 @@
 // Si no se consigue la cantidad de fps necesarias, el video
 // puede quedar acelerado
 #define TARGET_FPS_REC 30
+
+// Forzar que la ventana tenga el tamaño de la textura.
+// Con esta opcion se optiene una relacion 1:1 pagina pixel
+// Se desacitvan la visualizacion del menu de opciones.
+#define FORCE_WINDOWS_TO_TEXTURE 0
 
 #endif

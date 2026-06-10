@@ -94,7 +94,11 @@ void draw_text(const char* text, float start_x, float start_y, float size)
 
 void show_hud(uint8_t *map_ptr, double fps)
 {
-    uint8_t akps = map_ptr[INDEX_AKPS]; // actualizaciones del kernel por segundo
+    #if FORCE_WIN_TEXTURE
+    (void)map_ptr;
+    (void)fps;
+    #else
+    uint8_t kups = map_ptr[INDEX_KUPS];
 
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
@@ -253,17 +257,18 @@ void show_hud(uint8_t *map_ptr, double fps)
     // Texto
     glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
 
-    snprintf(buffer, sizeof(buffer), "AKPS: %d", akps);
+    snprintf(buffer, sizeof(buffer), "KUPS: %d", kups);
     draw_text(buffer, 0.65f, 0.80f, font_size);
 
     snprintf(buffer, sizeof(buffer), "FPS: %.1f", fps);
     draw_text(buffer, 0.65f, 0.75f, font_size);
 
-    if(CAPT_VIDEO){
+    #if CAPT_VIDEO
         snprintf(buffer, sizeof(buffer), "REC [%d FPS]", TARGET_FPS);
         draw_text(buffer, 0.65f, 0.65f, font_size);
-    } else{
+    #else
         draw_text("NO REC", 0.65f, 0.65f, font_size);
-    }
+    #endif
 
+    #endif
 }

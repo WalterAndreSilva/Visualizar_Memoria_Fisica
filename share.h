@@ -7,8 +7,13 @@
 #define BUFFER_SIZE   (TEXTURE_SIZE+12)
 #define INDEX_VIEW    (BUFFER_SIZE-2)        // uint16_t
 #define INDEX_MODE    (BUFFER_SIZE-3)        // uint8_t
-#define INDEX_AKPS    (BUFFER_SIZE-4)        // uint8_t
+#define INDEX_KUPS    (BUFFER_SIZE-4)        // uint8_t
 #define INDEX_TOTAL_PAGES (BUFFER_SIZE-12)   // uint64_t
+#define MAX_SCAN_GB MAX_RAM_SCAN_GB
+
+#define FORCE_WIN_TEXTURE FORCE_WINDOWS_TO_TEXTURE
+#define FORCE_WIDTH WIDTH
+#define FORCE_HEIGHT HEIGHT
 
 #define MASK_FREE (1<<0)
 #define MASK_RESE (1<<1)
@@ -24,14 +29,6 @@
 
 #define MASK_ALL  ((uint16_t)~0)
 
-#define MAX_SCAN_GB MAX_RAM_SCAN_GB
-
-#if V_SYNC_ACTIVE == 0
-#define V_SYNC 0
-#else
-#define V_SYNC 1
-#endif
-
 #if MAX_UPDATE_KERN_SEC <= 0
 #define MAX_UPDATE_KERN 1
 #else
@@ -40,8 +37,10 @@
 
 #if CAPTURE_VIDEO == 1
 #define CAPT_VIDEO 1
+#define V_SYNC 0
 #else
 #define CAPT_VIDEO 0
+#define V_SYNC 1
 #endif
 
 #define TARGET_FPS TARGET_FPS_REC
