@@ -6,6 +6,6 @@
 
 make
 sudo insmod mmap_kernel.ko
-sudo ./mmap_user
+./mmap_user
 sudo rmmod mmap_kernel
 make clean

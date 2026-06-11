@@ -15,7 +15,7 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - **R**: Resetear posicion y zoom.
 - **I** o **ESC**: Mostrar la información de las páginas.
 - **Q**: Cerrar aplicacion.
-- **0-9**: Mostrar u ocultar la categoría de la página.
+- **0-8**: Mostrar u ocultar la categoría de la página.
 - **U**: Usuario
 - **K**: Kernel
 - **A**: Seleccionar todas las páginas o ninguna.
@@ -25,6 +25,7 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - **D** y **E**: teclas auxiliares para hacer zoom.
 - **Teclas de dirección**: Desplazarse por la textura.
 
+Cuando se compila el programa con la opcion de forzar tamaño de ventana a la de la textura, se desactivan los desplazamientos y el zoom para que la venta sea estatica. Tambien se evita que se redimencione para conservar la relacion un pixel por pagina.
 
 ### Significado de los colores de las páginas
 
@@ -38,9 +39,9 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 
 - Verde oscuro (PGTB): Páginas destinadas al almacenamiento de las Page Tables (tablas de páginas), necesarias para la traducción de direcciones.
 
-- Hugetlbfs: Páginas gigantes manejadas por el kernel generalmente. Requiere root y no se puede partir.
+- Azul cielo (HUGE): Páginas gigantes manejadas por el kernel generalmente. Requiere root y no se puede partir.
 
-- Transparent Huge Pages (THP): Se pueden solicitar con madvise(). Son mas grande que 2MB (orden 9 -> 2^9 = 512 paginas * 4KB = 2MB)
+- Rosa (THP): Transparent Huge Pages. Se pueden solicitar con madvise(). Son mas grande que 2MB (orden 9 -> 2^9 = 512 paginas * 4KB = 2MB)
 
 - Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar Huge Pages. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
 
@@ -139,13 +140,24 @@ $ sudo dmesg | tail
 ### Ejecutar aplicacion grafica: 
 
 ```bash
-$ sudo ./mmap_user
+$ ./mmap_user
 ```
 
 Tambien se incluye un archivo run.sh que agiliza el proceso de compilar, cargar modulo, ejecutar app del usuario, descargar modulo y limpieza de archivos de compilacion. 
 
+## Grabar 
 
-### Informacion de paginas
+Para realizar la grabacion de la textura se necesita recompilar la aplicacion del usuario. La opcion se llama `CAPTURE_VIDEO` y se encuentra en el archivo `conf.h`. La captura de video esta permitido tanto en la funcion de forzar tamaño de ventana al de la textura, como en tamaño normal. Tener en cuenta que la resolucion del video depende del tamaño de la ventana al momento de iniciarse la aplicacion
+
+Nota: Es necesario tener inslado la aplicacion `ffmpeg`
+
+### Ubuntu
+
+```bash
+$ sudo apt install ffmpeg
+```
+
+## Informacion de paginas
 
 Páginas compuestas
 

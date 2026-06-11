@@ -6,10 +6,6 @@
 
 static int show_info = 0;
 
-static int is_fullscreen = 1;
-static int win_x = 100, win_y = 100;
-static int win_w = 800, win_h = 800;
-
 static float zoom = 1.0f;
 static float offsetX = 0.0f;
 static float offsetY = 0.0f;
@@ -17,6 +13,13 @@ static float offsetY = 0.0f;
 static int isDragging = 0;
 static double lastMouseX = 0.0;
 static double lastMouseY = 0.0;
+
+#if !FORCE_WIN_TEXTURE
+static int is_fullscreen = 1;
+static int win_x = 100, win_y = 100;
+static int win_w = 800, win_h = 800;
+#endif
+
 
 int get_show_info(){
     return show_info;
@@ -75,7 +78,11 @@ void scroll_callback_fun(double yoffset)
     if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
 }
 
-void switch_fullscreen_windowed(GLFWwindow* window){
+void switch_fullscreen_windowed(GLFWwindow* window)
+{
+    #if FORCE_WIN_TEXTURE
+    (void)window;
+    #else
     if (!is_fullscreen) {
         glfwGetWindowPos(window, &win_x, &win_y);
         glfwGetWindowSize(window, &win_w, &win_h);
@@ -93,6 +100,7 @@ void switch_fullscreen_windowed(GLFWwindow* window){
         glfwSetWindowMonitor(window, NULL, win_x, win_y, win_w, win_h, 0);
         is_fullscreen = 0;
     }
+    #endif
 }
 
 void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)

@@ -5,15 +5,16 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
+#include <string.h>
 #include "share.h"
 #include "user_app/text.h"
 #include "user_app/shader.h"
 #include "user_app/callback.h"
-#include <pthread.h>
-#include <string.h>
 
 #define QUEUE_SIZE 8 //  Cuántos frames podemos almacenar en RAM antes de bloquear
 
@@ -104,6 +105,7 @@ int main(void)
     double fps = 0.0;
     int frameCounter = 0;
 
+
     #if CAPT_VIDEO
         int record_w = 0;
         int record_h = 0;
@@ -115,16 +117,13 @@ int main(void)
         const double target_fps = TARGET_FPS;
         const double target_frame_time = 1.0 / target_fps;
         double frame_start_time;
+        int first_frame_pbo = 1;
     #endif
 
-    printf("Open %s...\n", pathname);
-    fd = open(pathname, O_RDWR | O_SYNC);
-    if (fd < 0) {
-        perror("Error opening file");
-        return 1;
+    if (!glfwInit()){
+        perror("Error initializing GLFW.\n");
+        return -1;
     }
-
-    if (!glfwInit()) return -1;
 
     #if FORCE_WIN_TEXTURE
         start_width = FORCE_WIDTH;
@@ -146,9 +145,8 @@ int main(void)
     GLFWwindow* window = glfwCreateWindow(start_width, start_height, "RAM memory visualization", target_monitor, NULL);
 
     if (!window) {
-        fprintf(stderr, "Error creating GLFW window.\n");
+        perror("Error creating GLFW window.\n");
         glfwTerminate();
-        close(fd);
         return -1;
     }
 
@@ -169,16 +167,26 @@ int main(void)
     GLenum err = glewInit();
     if(GLEW_OK != err){
         fprintf(stderr,"Error initializing GLEW: %s\n", glewGetErrorString(err));
+        glfwTerminate();
         return -1;
     }
     printf("Using GLEW %s\n", glewGetString(GLEW_VERSION));
     glfwSwapInterval(V_SYNC);
 
     // Mapeamos el buffer del kernel a nuestro espacio de usuario
+    printf("Open %s...\n", pathname);
+    fd = open(pathname, O_RDWR | O_SYNC);
+    if (fd < 0) {
+        perror("Error opening file");
+        glfwTerminate();
+        return -1;
+    }
+
     map_ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (map_ptr == MAP_FAILED) {
         perror("Error in mmap");
         close(fd);
+        glfwTerminate();
         return -1;
     }
     unsigned long total_pages;
@@ -261,6 +269,9 @@ int main(void)
         ffmpeg = popen(ffmpeg_cmd, "w");
         if (!ffmpeg) {
             perror("Error opening pipe to FFmpeg");
+            close(fd);
+            glfwTerminate();
+            return -1;
         }
         video_queue.head = 0;
         video_queue.tail = 0;
@@ -278,6 +289,8 @@ int main(void)
         }
         if (pthread_create(&writer_thread, NULL, ffmpeg_writer_worker, &video_queue) != 0) {
             perror("Error creating video thread");
+            close(fd);
+            glfwTerminate();
             return -1;
         }
     #endif
@@ -292,11 +305,10 @@ int main(void)
         press_hold_keys(window);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        int fb_w, fb_h;
         glfwGetFramebufferSize(window, &fb_w, &fb_h);
         if (fb_h == 0) fb_h = 1;
         glViewport(0, 0, fb_w, fb_h);
-        float aspect = (float)fb_w / (float)fb_h;
+        aspect = (float)fb_w / (float)fb_h;
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         glOrtho(-aspect, aspect, -1.0, 1.0, -1.0, 1.0);
@@ -322,10 +334,6 @@ int main(void)
             glDisable(GL_BLEND);
             glEnable(GL_TEXTURE_2D);
             glUseProgram(shaderProgram);
-            glMatrixMode(GL_PROJECTION);
-            glPopMatrix();
-            glMatrixMode(GL_MODELVIEW);
-            glPopMatrix();
         }
 
         #if CAPT_VIDEO
@@ -333,7 +341,7 @@ int main(void)
             glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[pbo_index]);
             glPixelStorei(GL_PACK_ALIGNMENT, 1);
             glReadPixels(0, 0, record_w, record_h, GL_RGB, GL_UNSIGNED_BYTE, 0);
-            if (frameCounter > 0) {
+            if (!first_frame_pbo) {
                 glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[pbo_next_index]);
                 GLubyte* src = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
 
@@ -341,7 +349,7 @@ int main(void)
                     pthread_mutex_lock(&video_queue.mutex);
 
                     if (video_queue.count == QUEUE_SIZE) {
-                         printf("Drop frame! FFmpeg is slow\n");
+                         printf("FFmpeg is slow\n");
                         // Bloquear el hilo principal para grabar el 100% de los frames
                         while (video_queue.count == QUEUE_SIZE) {
                                 pthread_cond_wait(&video_queue.cond_not_full, &video_queue.mutex);
@@ -356,7 +364,10 @@ int main(void)
                     pthread_mutex_unlock(&video_queue.mutex);
                     glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
                 }
+            } else {
+               first_frame_pbo = 0;
             }
+
             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
             pbo_next_index = pbo_index;

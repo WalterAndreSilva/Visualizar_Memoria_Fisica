@@ -30,6 +30,6 @@
 // Forzar que la ventana tenga el tamaño de la textura.
 // Con esta opcion se optiene una relacion 1:1 pagina pixel
 // Se desacitvan la visualizacion del menu de opciones.
-#define FORCE_WINDOWS_TO_TEXTURE 0
+#define FORCE_WINDOWS_TO_TEXTURE 1
 
 #endif
