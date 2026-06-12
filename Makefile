@@ -3,7 +3,7 @@ CFLAGS = -std=c11 -Wall -Wextra -O2 -march=native
 LDFLAGS = -lGL -lGLEW -lglfw -lm
 ccflags-y := -O2 -march=native
 obj-m += mmap_kernel.o
-USER_SRCS = mmap_user.c user_app/text.c user_app/shader.c user_app/callback.c
+USER_SRCS = mmap_user.c user_app/text.c user_app/shader.c user_app/callback.c user_app/record.c
 
 all: mmap_kernel mmap_user
 
