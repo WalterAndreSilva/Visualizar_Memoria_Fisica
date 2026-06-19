@@ -1,7 +1,7 @@
 /* THP / COMPUESTA/ ANONIMA / USUARIO
  *
  * Este programa solicita memoria desde el usuario para guardar variables.
- * Se solicita al sistama operativo que use Transparent HugePages
+ * Se solicita al sistama operativo que use Transparent HugePages usando madvise
  *
 */
 #define _GNU_SOURCE
@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #include <string.h>
 
-#define ALLOC_SIZE (512 * 1024 * 1024)  // Tamaño total 512 MB
+#define ALLOC_SIZE (8ULL * 1024 * 1024 * 1024)  // Tamaño total 
 #define HUGEPAGE_SIZE (2 * 1024 * 1024) // 2 MB
 
 int main() {

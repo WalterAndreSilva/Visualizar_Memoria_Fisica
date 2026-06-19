@@ -2,7 +2,9 @@
 CC     = gcc
 CFLAGS = -std=c11 -Wall -Wextra -O2 -march=native
 
-TARGETS = pages_anon pages_huge pages_thp
+SRCS = $(wildcard *.c)
+
+TARGETS = $(patsubst %.c,%,$(SRCS))
 
 all: $(TARGETS)
 

@@ -96,7 +96,7 @@ int init_video_capture(int start_width, int start_height)
     char ffmpeg_cmd[512];
     snprintf(ffmpeg_cmd, sizeof(ffmpeg_cmd),
              "ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgb24 "
-             "-s %dx%d -r %d -i - -vf vflip -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p %s",
+             "-s %dx%d -r %d -i - -vf vflip -sws_flags neighbor -c:v libx264rgb -preset ultrafast -crf 0 %s",
              record_w, record_h, TARGET_FPS, filename);
 
     ffmpeg = popen(ffmpeg_cmd, "w");
