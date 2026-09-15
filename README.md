@@ -1,9 +1,11 @@
-# Visualizar memoria RAM fisica en tiempo real
+# Visualizador Phymera (Physical Memory RAM)
 #### (En proceso)
 
 ## Descripción General
 
-Este proyecto consiste en una herramienta diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica interactiva. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización y grabacion, se puede modificar el archivo `conf.h`.
+Esta herramienta proporciona una visualización gráfica interactiva y en tiempo real del uso de las páginas de la memoria RAM física, permitiendo analizar su comportamiento en detalle.
+
+El proyecto consiste en una aplicación diseñada para leer las páginas físicas pertenecientes a la memoria RAM directamente desde el **Kernel Space**, transferir los datos de manera eficiente al **User Space** y, posteriormente, procesarlos para su visualización gráfica. El desarrollo se llevó a cabo utilizando el kernel de **Linux 6.14** con 16 GB de memoria RAM. Para cambiar esta cantidad de memoria o ajustar otras características de la visualización y grabacion, se puede modificar el archivo `conf.h`.
 
 El núcleo del proyecto radica en un módulo cargable llamado `mmap_kernel`, responsable de clasificar las páginas y mantener la información actualizada. Al inicializarse, el módulo recorre todos los Page Frame Numbers (PFN) y almacena aquellos marcados como memoria RAM. Cabe destacar que esta cantidad detectada es menor que la capacidad teórica de la RAM, ya que la BIOS reserva regiones de memoria durante la creación del mapa de memoria (BIOS-e820). Este mapa de memoria se puede observar en el archivo /proc/iomem. En la representación gráfica, la memoria reservada por la BIOS se muestra en color rojo.
 
@@ -143,7 +145,21 @@ $ sudo dmesg | tail
 $ ./mmap_user
 ```
 
-Tambien se incluye un archivo run.sh que agiliza el proceso de compilar, cargar modulo, ejecutar app del usuario, descargar modulo y limpieza de archivos de compilacion. 
+Tambien se incluye un archivo `run.sh` que agiliza el proceso de compilar, cargar modulo, ejecutar app del usuario, descargar modulo y limpieza de archivos de compilacion. 
+
+## Posibles problemas para compilar y/o ejecutar el programa
+
+### Versión de gcc incorrecta
+
+Durante la compilación del programa se puede producir un error al no encontrar una versión de **gcc** específica. Esto sucede porque, al compilar el módulo del kernel, se requiere exactamente la misma versión de **gcc** con la que se compiló el kernel de tu sistema.
+
+La solución consiste en instalar manualmente la versión correcta de **gcc**.
+
+### Insmod no puede cargar el módulo
+
+Una vez compilado el módulo, se puede dar la situación de que el comando **insmod** rechace su carga. Este inconveniente puede ocurrir por distintos motivos, pero en la mayoría de los casos se debe a que **Secure Boot** está activado. Esta característica de la BIOS impide que el sistema operativo cargue módulos del kernel que no están firmados.
+
+Para solucionar este problema, se debe acceder a la configuración de la BIOS y cambiar el estado de **Secure Boot** a **Disabled** (desactivado) para que el módulo se pueda cargar correctamente.
 
 ## Grabar 
 
