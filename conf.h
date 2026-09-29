@@ -14,7 +14,7 @@
 
 // Cantidad máxima de actualizaciones del kernel por segundo
 // Valor mínimo = 1
-#define MAX_UPDATE_KERN_SEC 30
+#define MAX_UPDATE_KERN_SEC 60
 
 // Captura de video
 // WARNING: Para realizar la captura se crea un pipe con ffmpeg

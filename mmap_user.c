@@ -47,7 +47,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 int main(void)
 {
     int fd;
-    double previosTime;
+    double previousTime;
     int start_width;
     int start_height;
     GLFWmonitor* target_monitor;
@@ -63,7 +63,7 @@ int main(void)
     #endif
 
     if (!glfwInit()){
-        perror("Error initializing GLFW.\n");
+        fprintf(stderr,"Error initializing GLFW.\n");
         return -1;
     }
 
@@ -87,7 +87,7 @@ int main(void)
     GLFWwindow* window = glfwCreateWindow(start_width, start_height, "RAM memory visualization", target_monitor, NULL);
 
     if (!window) {
-        perror("Error creating GLFW window.\n");
+        fprintf(stderr,"Error creating GLFW window.\n");
         glfwTerminate();
         return -1;
     }
@@ -137,12 +137,12 @@ int main(void)
     unsigned long total_pages = 0;
     req.tv_sec = 0;
     req.tv_nsec = 100000L;
-    for(int i=0; i<10; i++){
+    for(int i=0; i<1024; i++){
         memcpy(&total_pages, &map_ptr[INDEX_TOTAL_PAGES], sizeof(unsigned long));
         if(total_pages>0) break;
         nanosleep(&req, NULL);
     }
-    double total_ram_gb = ((double)total_pages)/262144;
+    double total_ram_gb = ((double)total_pages)/262144; //paginas de 4KB
     printf("Total pages: %lu \nTotal RAM:  %.2f GB\n", total_pages, total_ram_gb);
 
     // Configuracion OpenGL
@@ -162,7 +162,6 @@ int main(void)
 
     // Shader en OpenGL
     GLuint shaderProgram = compile_shader();
-    glUseProgram(shaderProgram);
     if (shaderProgram == 0){
         munmap(map_ptr, BUFFER_SIZE);
         close(fd);
@@ -170,6 +169,7 @@ int main(void)
         glfwTerminate();
         return -1;
     }
+    glUseProgram(shaderProgram);
     GLint textureLocation = glGetUniformLocation(shaderProgram, "myTexture");
     glUniform1i(textureLocation, 0);
 
@@ -213,7 +213,7 @@ int main(void)
     }
     #endif
 
-    previosTime = glfwGetTime();
+    previousTime = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
         #if CAPT_VIDEO
             frame_start_time = glfwGetTime();
@@ -264,7 +264,7 @@ int main(void)
         // Calculo FPS
         double currentTime = glfwGetTime();
         frameCounter ++;
-        if (currentTime-previosTime >= 1.0){
+        if (currentTime-previousTime >= 1.0){
             fps = frameCounter;
 
             #if FORCE_WIN_TEXTURE
@@ -278,7 +278,7 @@ int main(void)
             glfwSetWindowTitle(window, title);
             #endif
 
-            previosTime = currentTime;
+            previousTime = currentTime;
             frameCounter = 0;
         }
         #if CAPT_VIDEO

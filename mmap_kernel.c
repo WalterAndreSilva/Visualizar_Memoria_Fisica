@@ -95,85 +95,186 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
     return 0;
 }
 
-static inline uint8_t get_value_use(uint32_t pfn, uint16_t view_page)
+static inline void calculate_values_use(struct mmap_info *info)
 {
-    struct page *page = pfn_to_page(pfn);
-    struct folio *folio = page_folio(page);
+    uint64_t cont_free = 0, cont_rese = 0, cont_slab = 0, cont_huge = 0;
+    uint64_t cont_thp = 0, cont_comp = 0, cont_pgtb = 0, cont_file = 0;
+    uint64_t cont_anon = 0, cont_user = 0, cont_kern = 0, cont_acti = 0;
+    uint32_t pfn = 0, pos = 0;
 
-    if (folio_ref_count(folio) == 0      &&   // contador de referencias
-        !folio_test_slab(folio)){             // no es slab
-            if (view_page & MASK_FREE) return VAL_FREE;
-            return VAL_UNKN;
+    uint16_t view_page = *(uint16_t*)(&info->data[INDEX_VIEW]);
+    unsigned long count = map_data.sysRAM_count;
+    uint32_t *pfns = map_data.sysRAM_pfns;
+    uint32_t *poss = map_data.sysRAM_pos;
+    uint8_t *out = info->data;
+
+    for (unsigned long i = 0; i < count; i++) {
+        pfn = pfns[i];
+        pos = poss[i];
+
+        struct folio *folio = pfn_folio(pfn);
+
+        unsigned int refcount = folio_ref_count(folio);
+        bool is_slab = folio_test_slab(folio);
+
+        if (refcount == 0 && !is_slab) {
+            if (view_page & MASK_FREE) {
+                out[pos] = VAL_FREE;
+                cont_free++;
+                continue;
+            }
+            out[pos] = VAL_UNKN;
+            continue;
+        }
+        if (folio_test_reserved(folio)) {
+            if (view_page & MASK_RESE) {
+                out[pos] = VAL_RESE;
+                cont_rese++;
+                continue;
+            }
+        }
+        if (is_slab) {
+            if (view_page & MASK_SLAB) {
+                out[pos] = VAL_SLAB;
+                cont_slab++;
+                continue;
+            }
+        }
+        if (folio_test_hugetlb(folio)) {
+            if (view_page & MASK_HUGE) {
+                out[pos] = VAL_HUGE;
+                cont_huge++;
+                continue;
+            }
+        }
+        if (folio_order(folio) >= 9 && !folio_test_hugetlb(folio)) {
+            if (view_page & MASK_THP) {
+                out[pos] = VAL_THP;
+                cont_thp++;
+                continue;
+            }
+        }
+        if (folio_test_large(folio)) {
+            if (view_page & MASK_COMP) {
+                out[pos] = VAL_COMP;
+                cont_comp++;
+                continue;
+            }
+        }
+        if (folio_test_pgtable(folio)) {
+            if (view_page & MASK_PGTB) {
+                out[pos] = VAL_PGTB;
+                cont_pgtb++;
+                continue;
+            }
+        }
+        if (folio_test_active(folio)) {
+            if (view_page & MASK_ACTI) {
+                out[pos] = VAL_ACTI;
+                cont_acti++;
+                continue;
+            }
+        }
+        if (folio_test_lru(folio)) {
+            if (folio_test_anon(folio)) {
+                if (view_page & MASK_ANON) {
+                    out[pos] = VAL_ANON;
+                    cont_anon++;
+                    continue;
+                }
+            } else {
+                if (view_page & MASK_FILE) {
+                    out[pos] = VAL_FILE;
+                    cont_file++;
+                    continue;
+                }
+            }
+        }
+        if (folio_mapped(folio)) {
+            if (view_page & MASK_USER) {
+                out[pos] = VAL_USER;
+                cont_user++;
+                continue;
+            }
+        }
+        if ((refcount > 0 || is_slab) && !folio_test_lru(folio) && !folio_mapped(folio)) {
+            if (view_page & MASK_KERN) {
+                out[pos] = VAL_KERN;
+                cont_kern++;
+                continue;
+            }
+        }
+        out[pos] = VAL_UNKN;
     }
 
-    if (folio_test_reserved(folio)) {
-        if (view_page & MASK_RESE) return VAL_RESE;
-    }
+    memcpy(&info->data[INDEX_CONT_FREE], &cont_free, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_RESE], &cont_rese, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_SLAB], &cont_slab, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_HUGE], &cont_huge, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_THP],  &cont_thp,  sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_COMP], &cont_comp, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_PGTB], &cont_pgtb, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_ACTI], &cont_acti, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_FILE], &cont_file, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_ANON], &cont_anon, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_USER], &cont_user, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_KERN], &cont_kern, sizeof(uint64_t));
+}
 
-    if(folio_test_slab(folio)){
-        if (view_page & MASK_SLAB) return VAL_SLAB;
-    }
+static inline void calculate_values_zone(struct mmap_info *info)
+{
+    uint64_t cont_dma = 0, cont_dma32 = 0, cont_normal = 0;
+    uint32_t pfn = 0, pos = 0;
+    int zone_idx = 0;
 
-    if (folio_test_hugetlb(folio)){ //huge
-        if (view_page & MASK_HUGE) return VAL_HUGE;
-    }
+    for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
+        pfn = map_data.sysRAM_pfns[i];
+        pos = map_data.sysRAM_pos[i];
 
-    if (folio_order(folio) >= 9 && !folio_test_hugetlb(folio)){  //THP
-        if (view_page & MASK_THP) return VAL_THP;
-    }
+        struct folio *folio = pfn_folio(pfn);
+        zone_idx = folio_zonenum(folio);
 
-    if (folio_test_large(folio)) {  // comp menores a 2MB
-        if (view_page & MASK_COMP) return VAL_COMP;
-    }
-
-    if (folio_test_pgtable(folio)) {
-        if (view_page & MASK_PGTB) return VAL_PGTB;
-    }
-
-    if (folio_test_lru(folio)) {
-        if (folio_test_anon(folio)) {
-            if (view_page & MASK_ANON) return VAL_ANON;
+        if (zone_idx == ZONE_DMA) {
+            info->data[pos] = VAL_ZONE_DMA;
+            cont_dma++;
+        } else if (zone_idx == ZONE_DMA32) {
+            info->data[pos] = VAL_ZONE_DMA32;
+            cont_dma32++;
+        } else if (zone_idx == ZONE_NORMAL) {
+            info->data[pos] = VAL_ZONE_NORMAL;
+            cont_normal++;
         } else {
-            if (view_page & MASK_FILE) return VAL_FILE;
+            info->data[pos] = VAL_UNKN;
         }
     }
-
-    if (folio_mapped(folio)) {
-        if (view_page & MASK_USER) return VAL_USER;
-    }
-
-    if ((folio_ref_count(folio)>0 || folio_test_slab(folio)) &&
-        !folio_test_lru(folio) &&
-        !folio_mapped(folio)) {
-        if (view_page & MASK_KERN) return VAL_KERN;
-    }
-
-    return VAL_UNKN;
+    memcpy(&info->data[INDEX_CONT_DMA], &cont_dma, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_DMA32], &cont_dma32, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_NORMAL], &cont_normal, sizeof(uint64_t));
 }
 
-static inline uint8_t get_value_zone(uint32_t pfn)
+static inline void calculate_values_state(struct mmap_info *info)
 {
-    struct page *page = pfn_to_page(pfn);
-    struct folio *folio = page_folio(page);
+    uint64_t cont_writeb = 0, cont_dirty = 0;
+    uint32_t pfn = 0, pos = 0;
 
-    int zone_idx = folio_zonenum(folio);
+    for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
+        pfn = map_data.sysRAM_pfns[i];
+        pos = map_data.sysRAM_pos[i];
 
-    if (zone_idx == ZONE_DMA) return VAL_ZONE_DMA;
-    else if (zone_idx == ZONE_DMA32) return VAL_ZONE_DMA32;
-    else if (zone_idx == ZONE_NORMAL) return VAL_ZONE_NORMAL;
+        struct folio *folio = pfn_folio(pfn);
 
-    return VAL_UNKN;
-}
-
-static inline uint8_t get_value_state(uint32_t pfn)
-{
-    struct page *page = pfn_to_page(pfn);
-    struct folio *folio = page_folio(page);
-
-    if (folio_test_writeback(folio))  return VAL_WRITEBACK;
-    else if (folio_test_dirty(folio)) return VAL_DIRTY;
-
-    return VAL_UNKN;
+        if (folio_test_writeback(folio)) {
+            info->data[pos] = VAL_WRITEBACK;
+            cont_writeb++;
+        } else if (folio_test_dirty(folio)) {
+            info->data[pos] = VAL_DIRTY;
+            cont_dirty++;
+        } else {
+            info->data[pos] = VAL_UNKN;
+        }
+    }
+    memcpy(&info->data[INDEX_CONT_WRITEBACK], &cont_writeb, sizeof(uint64_t));
+    memcpy(&info->data[INDEX_CONT_DIRTY], &cont_dirty, sizeof(uint64_t));
 }
 
 static int update_data_thread(void *data)
@@ -183,7 +284,6 @@ static int update_data_thread(void *data)
     ktime_t next_second_ktime;
     uint8_t iteration = 0;
     uint8_t view_mode = 0;
-    uint16_t view_page = MASK_ALL;
     unsigned long total_pages = map_data.valid_count;
     u64 frame_time_ns = ONE_SECOND / MAX_UPDATE_KERN;
 
@@ -197,7 +297,7 @@ static int update_data_thread(void *data)
 
     memset(info->data, VAL_VOID, total_pages);
     info->data[INDEX_MODE] = view_mode;
-    *(uint16_t*)(&info->data[INDEX_VIEW]) = view_page;
+    *(uint16_t*)(&info->data[INDEX_VIEW]) = MASK_ALL;
     for (int i = 0; i < 8; i++) {
         info->data[INDEX_TOTAL_PAGES+i] = (total_pages >> (i*8)) & 0xFF;
     }
@@ -207,24 +307,11 @@ static int update_data_thread(void *data)
 
     while (!kthread_should_stop()) {
         if (view_mode == 0){
-            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
-                uint32_t pfn = map_data.sysRAM_pfns[i];
-                uint32_t pos = map_data.sysRAM_pos[i];
-                view_page = *(uint16_t*)(&info->data[INDEX_VIEW]);
-                info->data[pos] = get_value_use(pfn, view_page);
-            }
+            calculate_values_use(info);
         } else if (view_mode == 1){
-            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
-                uint32_t pfn = map_data.sysRAM_pfns[i];
-                uint32_t pos = map_data.sysRAM_pos[i];
-                info->data[pos] = get_value_zone(pfn);
-            }
+            calculate_values_zone(info);
         } else if (view_mode == 2){
-            for (unsigned long i = 0; i < map_data.sysRAM_count; i++) {
-                uint32_t pfn = map_data.sysRAM_pfns[i];
-                uint32_t pos = map_data.sysRAM_pos[i];
-                info->data[pos] = get_value_state(pfn);
-            }
+            calculate_values_state(info);
         }
         view_mode = info->data[INDEX_MODE];
 
@@ -255,7 +342,7 @@ static int scan_and_store_ram(void)
     unsigned long valid_count = 0;
 
     for (pfn = 0; pfn < MAX_SCAN_PFN; pfn++) {
-        if (page_is_ram(pfn)) {
+        if (pfn_valid(pfn)) {
             valid_count++;
         }
         if ((pfn % 32768) == 0) cond_resched();

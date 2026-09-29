@@ -4,11 +4,28 @@
 #define SHARE_H
 
 #define TEXTURE_SIZE  (WIDTH*HEIGHT)
-#define BUFFER_SIZE   (TEXTURE_SIZE+12)
-#define INDEX_VIEW    (BUFFER_SIZE-2)        // uint16_t
-#define INDEX_MODE    (BUFFER_SIZE-3)        // uint8_t
-#define INDEX_KUPS    (BUFFER_SIZE-4)        // uint8_t
-#define INDEX_TOTAL_PAGES (BUFFER_SIZE-12)   // uint64_t
+#define BUFFER_SIZE   (TEXTURE_SIZE+156)
+#define INDEX_VIEW    (BUFFER_SIZE-2)          // uint16_t
+#define INDEX_MODE    (BUFFER_SIZE-3)          // uint8_t
+#define INDEX_KUPS    (BUFFER_SIZE-4)          // uint8_t
+#define INDEX_TOTAL_PAGES (BUFFER_SIZE-12)     // uint64_t
+#define INDEX_CONT_FREE (BUFFER_SIZE-20)       // uint64_t
+#define INDEX_CONT_RESE (BUFFER_SIZE-28)       // uint64_t
+#define INDEX_CONT_SLAB (BUFFER_SIZE-36)       // uint64_t
+#define INDEX_CONT_HUGE (BUFFER_SIZE-44)       // uint64_t
+#define INDEX_CONT_THP  (BUFFER_SIZE-52)       // uint64_t
+#define INDEX_CONT_COMP (BUFFER_SIZE-60)       // uint64_t
+#define INDEX_CONT_PGTB (BUFFER_SIZE-68)       // uint64_t
+#define INDEX_CONT_ACTI (BUFFER_SIZE-76)       // uint64_t
+#define INDEX_CONT_FILE (BUFFER_SIZE-84)       // uint64_t
+#define INDEX_CONT_ANON (BUFFER_SIZE-92)       // uint64_t
+#define INDEX_CONT_USER (BUFFER_SIZE-100)      // uint64_t
+#define INDEX_CONT_KERN (BUFFER_SIZE-108)      // uint64_t
+#define INDEX_CONT_DMA    (BUFFER_SIZE-116)    // uint64_t
+#define INDEX_CONT_DMA32  (BUFFER_SIZE-124)    // uint64_t
+#define INDEX_CONT_NORMAL (BUFFER_SIZE-132)    // uint64_t
+#define INDEX_CONT_WRITEBACK (BUFFER_SIZE-140) // uint64_t
+#define INDEX_CONT_DIRTY  (BUFFER_SIZE-148)    // uint64_t
 #define MAX_SCAN_GB MAX_RAM_SCAN_GB
 
 #define FORCE_WIN_TEXTURE FORCE_WINDOWS_TO_TEXTURE
@@ -22,6 +39,7 @@
 #define MASK_THP  (1<<4)
 #define MASK_COMP (1<<5)
 #define MASK_PGTB (1<<6)
+#define MASK_ACTI (1<<11)
 #define MASK_FILE (1<<12)
 #define MASK_ANON (1<<13)
 #define MASK_USER (1<<14)
@@ -62,10 +80,11 @@ typedef enum {
     COL_SKY,
     COL_GREY,
     COL_LIME,
-    COL_TEAL
+    COL_TEAL,
+    COL_PEACH
 } ColorMemory;
 
-static const float palette[16][4] = {
+static const float palette[17][4] = {
     {0.0, 0.0, 0.0, 1.0}, // COL_BLACK
     {1.0, 0.0, 0.0, 1.0}, // COL_RED
     {0.0, 0.0, 1.0, 1.0}, // COL_BLUE
@@ -81,7 +100,8 @@ static const float palette[16][4] = {
     {0.3, 0.6, 1.0, 1.0}, // COL_SKY
     {0.6, 0.6, 0.6, 1.0}, // COL_GREY
     {0.8, 1.0, 0.2, 1.0}, // COL_LIME
-    {0.0, 0.5, 0.4, 1.0}  // COL_TEAL
+    {0.0, 0.5, 0.4, 1.0}, // COL_TEAL
+    {1.0, 0.8, 0.6, 1.0}  // COL_PEACH
 };
 
 // Seleccion de color para la vista
@@ -95,6 +115,7 @@ static const float palette[16][4] = {
 #define VAL_PGTB COL_DARK_GREEN
 #define VAL_KERN COL_MAGENTA
 
+#define VAL_ACTI COL_PEACH
 #define VAL_FILE COL_ORANGE
 #define VAL_ANON COL_PURPLE
 #define VAL_USER COL_BROWN

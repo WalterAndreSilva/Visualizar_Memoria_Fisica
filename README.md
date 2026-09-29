@@ -47,6 +47,8 @@ Cuando se compila el programa con la opcion de forzar tamaño de ventana a la de
 
 - Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar Huge Pages. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
 
+- Durazno (ACTI): Representa una página que ha sido accedida recientemente y que el sistema prioriza mantener en la RAM, evitando que sea movida al swap.
+
 - Naranja (FILE): Páginas de caché utilizadas para el mapeo de archivos desde el almacenamiento hacia la RAM.
 
 - Violeta (ANON): Páginas de memoria anónima. Son aquellas utilizadas por procesos en User Space para almacenar datos dinámicos (como el stack y el heap).

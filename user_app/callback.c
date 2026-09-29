@@ -139,8 +139,11 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
             *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_PGTB;
         } else if (key == GLFW_KEY_7 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
-            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FILE;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ACTI;
         } else if (key == GLFW_KEY_8 ) {
+            if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
+            *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_FILE;
+        } else if (key == GLFW_KEY_9 ) {
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
             *(uint16_t*)(&map_ptr[INDEX_VIEW]) ^= MASK_ANON;
         } else if (key == GLFW_KEY_U ) {
@@ -156,7 +159,6 @@ void key_callback_fun(GLFWwindow* window, int key, int action, uint8_t *map_ptr)
             if(map_ptr[INDEX_MODE] != 0) map_ptr[INDEX_MODE] = 0;
             uint16_t view_all = *(uint16_t*)(&map_ptr[INDEX_VIEW]);
             if (view_all ^ MASK_ALL) *(uint16_t*)(&map_ptr[INDEX_VIEW]) = MASK_ALL;
-            else *(uint16_t*)(&map_ptr[INDEX_VIEW]) = 0;
         } else if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_I) {
             show_info = !show_info;
         } else if (key == GLFW_KEY_R) {

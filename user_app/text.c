@@ -2,6 +2,8 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>  // snprintf
 #include <stdint.h> // uint32_t
+#include <string.h>
+
 #include "../share.h"
 
 #include "text.h"
@@ -92,14 +94,136 @@ void draw_text(const char* text, float start_x, float start_y, float size)
     glEnd();
 }
 
-void show_hud(uint8_t *map_ptr, double fps)
-{
-    #if FORCE_WIN_TEXTURE
-    (void)map_ptr;
-    (void)fps;
-    #else
-    uint8_t kups = map_ptr[INDEX_KUPS];
+#if !FORCE_WIN_TEXTURE
 
+static const float HUD_PANEL_OUTER   = 0.98f;   // borde exterior de los paneles
+static const float HUD_PANEL_INNER   = 0.60f;   // borde interior de los paneles
+static const float HUD_PANEL_TOP     = 0.98f;
+static const float HUD_PANEL_BOTTOM  = -0.98f;
+
+static const float HUD_FONT_SIZE     = 0.006f;
+static const float HUD_TITLE_SIZE    = 0.008f;
+static const float HUD_ROW_STEP      = 0.05f;   // separación vertical entre filas
+
+// Panel izquierdo
+static const float HUD_LEFT_X        = -0.94f;
+static const float HUD_LEGEND_Y      = 0.75f;   // primera fila de la leyenda
+static const float HUD_TITLE_X       = -0.92f;
+static const float HUD_TITLE_Y       = 0.90f;
+static const float HUD_SUBTITLE_Y    = 0.80f;
+
+// Panel derecho (tabla de contadores)
+static const float HUD_AMOUNTS_X     = 0.63f;
+static const float HUD_COUNTER_Y     = 0.80f;
+static const float HUD_COUNTER_LABEL_X = 0.62f;
+static const float HUD_COUNTER_VALUE_X = 0.76f;
+static const float HUD_STATS_X       = 0.65f;
+
+typedef enum {
+    HUD_MODE_USE   = 0,
+    HUD_MODE_ZONE  = 1,
+    HUD_MODE_STATE = 2
+} HudMode;
+
+// Una fila de la leyenda (columna izquierda) y su contador (columna derecha)
+typedef struct {
+    const char *key;            // tecla del checkbox; NULL si el modo no tiene checkboxes
+    const char *name;           // texto de la leyenda (con sangría)
+    const char *counter_label;  // etiqueta del contador
+    int         color;          // índice en palette
+    uint32_t    mask;           // bit en la vista actual (solo modo USE)
+    int         counter_index;  // posición del contador en map_ptr
+    int         gap_before;     // 1 = dejar una fila vacía antes de esta
+} HudEntry;
+
+static const HudEntry HUD_USE_ENTRIES[] = {
+    { "0", "  FREE",       "FREE:", VAL_FREE, MASK_FREE, INDEX_CONT_FREE, 0 },
+    { "1", "  RESERVED",   "RESE:", VAL_RESE, MASK_RESE, INDEX_CONT_RESE, 0 },
+    { "2", "  SLAB",       "SLAB:", VAL_SLAB, MASK_SLAB, INDEX_CONT_SLAB, 0 },
+    { "3", "  HUGE",       "HUGE:", VAL_HUGE, MASK_HUGE, INDEX_CONT_HUGE, 0 },
+    { "4", "  THP",        "THP :", VAL_THP,  MASK_THP,  INDEX_CONT_THP,  0 },
+    { "5", "  COMPOUND",   "COMP:", VAL_COMP, MASK_COMP, INDEX_CONT_COMP, 0 },
+    { "6", "  PGTB",       "PGTB:", VAL_PGTB, MASK_PGTB, INDEX_CONT_PGTB, 0 },
+    { "7", "  ACTIVE",     "ACTI:", VAL_ACTI, MASK_ACTI, INDEX_CONT_ACTI, 0 },
+    { "8", "  FILE",       "FILE:", VAL_FILE, MASK_FILE, INDEX_CONT_FILE, 0 },
+    { "9", "  ANONYMOUS",  "ANON:", VAL_ANON, MASK_ANON, INDEX_CONT_ANON, 0 },
+    { "U", "  USER",       "USER:", VAL_USER, MASK_USER, INDEX_CONT_USER, 1 },
+    { "K", "  KERNEL",     "KERN:", VAL_KERN, MASK_KERN, INDEX_CONT_KERN, 0 },
+};
+
+static const HudEntry HUD_ZONE_ENTRIES[] = {
+    { NULL, "  DMA",    "DMA  :", VAL_ZONE_DMA,    0, INDEX_CONT_DMA,    0 },
+    { NULL, "  DMA32",  "DMA32:", VAL_ZONE_DMA32,  0, INDEX_CONT_DMA32,  0 },
+    { NULL, "  NORMAL", "NORM :", VAL_ZONE_NORMAL, 0, INDEX_CONT_NORMAL, 0 },
+};
+
+static const HudEntry HUD_STATE_ENTRIES[] = {
+    { NULL, "  WRITEBACK", "WRITE:", VAL_WRITEBACK, 0, INDEX_CONT_WRITEBACK, 0 },
+    { NULL, "  DIRTY",     "DIRTY:", VAL_DIRTY,     0, INDEX_CONT_DIRTY,     0 },
+};
+
+static const char *const HUD_MODE_TITLES[] = {
+    [HUD_MODE_USE]   = "VIEW USE",
+    [HUD_MODE_ZONE]  = "VIEW ZONE",
+    [HUD_MODE_STATE] = "VIEW STATE",
+};
+
+typedef struct { const char *text; float y; } HudHelpLine;
+
+static const HudHelpLine HUD_HELP_LINES[] = {
+    { "A:VIEW USE",    -0.40f },
+    { "Z:VIEW ZONE",   -0.45f },
+    { "S:VIEW STATE",  -0.50f },
+    { "E:MORE ZOOM",   -0.60f },
+    { "D:LESS ZOOM",   -0.65f },
+    { "ARROW:MOVE",    -0.70f },
+    { "R:RESET VIEW",  -0.75f },
+};
+
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
+
+
+static void hud_set_text_color(void)
+{
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
+}
+
+static void hud_set_palette_color(int index)
+{
+    glColor4f(palette[index][0], palette[index][1], palette[index][2], palette[index][3]);
+}
+
+static uint64_t hud_read_counter(const uint8_t *map_ptr, int index)
+{
+    uint64_t value = 0;
+    memcpy(&value, &map_ptr[index], sizeof(value));
+    return value;
+}
+
+static HudMode hud_get_mode(const uint8_t *map_ptr)
+{
+    switch (map_ptr[INDEX_MODE]) {
+        case 0:  return HUD_MODE_USE;
+        case 1:  return HUD_MODE_ZONE;
+        default: return HUD_MODE_STATE;
+    }
+}
+
+static void hud_get_entries(HudMode mode, const HudEntry **entries, size_t *count)
+{
+    switch (mode) {
+        case HUD_MODE_USE:
+            *entries = HUD_USE_ENTRIES;   *count = ARRAY_LEN(HUD_USE_ENTRIES);   break;
+        case HUD_MODE_ZONE:
+            *entries = HUD_ZONE_ENTRIES;  *count = ARRAY_LEN(HUD_ZONE_ENTRIES);  break;
+        default:
+            *entries = HUD_STATE_ENTRIES; *count = ARRAY_LEN(HUD_STATE_ENTRIES); break;
+    }
+}
+
+// Configura una proyección 2D normalizada para dibujar encima de la escena
+static void hud_begin_2d(void)
+{
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -111,164 +235,161 @@ void show_hud(uint8_t *map_ptr, double fps)
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
 
-    // CUADRADO IZQUIERDO
+static void hud_panel_vertices(float x_outer, float x_inner)
+{
+    glVertex2f(x_outer, HUD_PANEL_BOTTOM);
+    glVertex2f(x_inner, HUD_PANEL_BOTTOM);
+    glVertex2f(x_inner, HUD_PANEL_TOP);
+    glVertex2f(x_outer, HUD_PANEL_TOP);
+}
 
-    // Rango X: -0.98 hasta -0.6
+// Panel con fondo oscuro y borde blanco
+static void hud_draw_panel(float x_outer, float x_inner)
+{
     glColor4f(0.1f, 0.1f, 0.1f, 0.9f);
     glBegin(GL_QUADS);
-    glVertex2f(-0.98f, -0.98f);
-    glVertex2f(-0.60f, -0.98f);
-    glVertex2f(-0.60f,  0.98f);
-    glVertex2f(-0.98f,  0.98f);
+    hud_panel_vertices(x_outer, x_inner);
     glEnd();
 
-    // Borde
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glLineWidth(2.0f);
     glBegin(GL_LINE_LOOP);
-    glVertex2f(-0.98f, -0.98f);
-    glVertex2f(-0.60f, -0.98f);
-    glVertex2f(-0.60f,  0.98f);
-    glVertex2f(-0.98f,  0.98f);
+    hud_panel_vertices(x_outer, x_inner);
     glEnd();
+}
 
-    // Textos
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); // Blanco
-    char *mode;
-    if (map_ptr[INDEX_MODE]==0) mode ="VIEW USE";
-    else if (map_ptr[INDEX_MODE]==1) mode = "VIEW ZONE";
-    else mode = "VIEW STATE";
-    draw_text(mode, -0.92f, 0.9f, 0.008f);
+static void hud_draw_header(HudMode mode)
+{
+    hud_set_text_color();
+    draw_text(HUD_MODE_TITLES[mode], HUD_TITLE_X, HUD_TITLE_Y, HUD_TITLE_SIZE);
 
-    char buffer[256];
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); // Blanco
+    draw_text("AMOUNTS IN VIEW", HUD_AMOUNTS_X, HUD_TITLE_Y, HUD_FONT_SIZE);
 
-    float font_size = 0.006f;
+    hud_set_palette_color(VAL_VOID);
+    draw_text("  RESE BIOS", HUD_LEFT_X, HUD_SUBTITLE_Y, HUD_FONT_SIZE);
+}
 
-    // BLANCO
-    uint16_t current_view = *(uint16_t*)(&map_ptr[INDEX_VIEW]);
-    snprintf(buffer, sizeof(buffer), "0:          [%s]", (current_view & MASK_FREE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.75f, font_size);
-    snprintf(buffer, sizeof(buffer), "1:          [%s]", (current_view & MASK_RESE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.70f, font_size);
-    snprintf(buffer, sizeof(buffer), "2:          [%s]", (current_view & MASK_SLAB) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.65f, font_size);
-    snprintf(buffer, sizeof(buffer), "3:          [%s]", (current_view & MASK_HUGE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.60f, font_size);
-    snprintf(buffer, sizeof(buffer), "4:          [%s]", (current_view & MASK_THP) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.55f, font_size);
-    snprintf(buffer, sizeof(buffer), "5:          [%s]", (current_view & MASK_COMP) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.50f, font_size);
-    snprintf(buffer, sizeof(buffer), "6:          [%s]", (current_view & MASK_PGTB) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.45f, font_size);
-    snprintf(buffer, sizeof(buffer), "7:          [%s]", (current_view & MASK_FILE) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.40f, font_size);
-    snprintf(buffer, sizeof(buffer), "8:          [%s]", (current_view & MASK_ANON) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.35f, font_size);
-    snprintf(buffer, sizeof(buffer), "9:          [%s]", (current_view & 0) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.30f, font_size);
-    snprintf(buffer, sizeof(buffer), "U:          [%s]", (current_view & MASK_USER) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.25f, font_size);
-    snprintf(buffer, sizeof(buffer), "K:          [%s]", (current_view & MASK_KERN) ? "X" : " ");
-    draw_text(buffer, -0.94f, 0.20f, font_size);
+// Columna izquierda: [checkbox] + nombre de cada categoría, con su color
+static void hud_draw_legend(const HudEntry *entries, size_t count, uint16_t current_view)
+{
+    char buffer[64];
+    int row = 0;
 
-    // COLOR
-    glColor4f(palette[VAL_VOID][0], palette[VAL_VOID][1], palette[VAL_VOID][2], palette[VAL_VOID][3]);
-    draw_text("  RESE BIOS", -0.94f, 0.80f, font_size);
-    glColor4f(palette[VAL_FREE][0], palette[VAL_FREE][1], palette[VAL_FREE][2], palette[VAL_FREE][3]);
-    draw_text("  FREE", -0.94f, 0.75f, font_size);
-    glColor4f(palette[VAL_RESE][0], palette[VAL_RESE][1], palette[VAL_RESE][2], palette[VAL_RESE][3]);
-    draw_text("  RESERVED", -0.94f, 0.70f, font_size);
-    glColor4f(palette[VAL_SLAB][0], palette[VAL_SLAB][1], palette[VAL_SLAB][2], palette[VAL_SLAB][3]);
-    draw_text("  SLAB", -0.94f, 0.65f, font_size);
-    glColor4f(palette[VAL_HUGE][0], palette[VAL_HUGE][1], palette[VAL_HUGE][2], palette[VAL_HUGE][3]);
-    draw_text("  HUGE", -0.94f, 0.60f, font_size);
-    glColor4f(palette[VAL_THP][0], palette[VAL_THP][1], palette[VAL_THP][2], palette[VAL_THP][3]);
-    draw_text("  THP", -0.94f, 0.55f, font_size);
-    glColor4f(palette[VAL_COMP][0], palette[VAL_COMP][1], palette[VAL_COMP][2], palette[VAL_COMP][3]);
-    draw_text("  COMPOUND", -0.94f, 0.50f, font_size);
-    glColor4f(palette[VAL_PGTB][0], palette[VAL_PGTB][1], palette[VAL_PGTB][2], palette[VAL_PGTB][3]);
-    draw_text("  PGTB", -0.94f, 0.45f, font_size);
-    glColor4f(palette[VAL_FILE][0], palette[VAL_FILE][1], palette[VAL_FILE][2], palette[VAL_FILE][3]);
-    draw_text("  FILE", -0.94f, 0.40f, font_size);
-    glColor4f(palette[VAL_ANON][0], palette[VAL_ANON][1], palette[VAL_ANON][2], palette[VAL_ANON][3]);
-    draw_text("  ANONYMOUS", -0.94f, 0.35f, font_size);
-    glColor4f(palette[VAL_ANON][0], palette[0][1], palette[0][2], palette[0][3]);
-    draw_text("  ", -0.94f, 0.30f, font_size);
-    glColor4f(palette[VAL_USER][0], palette[VAL_USER][1], palette[VAL_USER][2], palette[VAL_USER][3]);
-    draw_text("  USER", -0.94f, 0.25f, font_size);
-    glColor4f(palette[VAL_KERN][0], palette[VAL_KERN][1], palette[VAL_KERN][2], palette[VAL_KERN][3]);
-    draw_text("  KERNEL", -0.94f, 0.20f, font_size);
+    for (size_t i = 0; i < count; i++) {
+        const HudEntry *e = &entries[i];
+        row += e->gap_before;
+        float y = HUD_LEGEND_Y - row * HUD_ROW_STEP;
 
+        if (e->key) {
+            hud_set_text_color();
+            snprintf(buffer, sizeof(buffer), "%s:          [%s]",
+                     e->key, (current_view & e->mask) ? "X" : " ");
+            draw_text(buffer, HUD_LEFT_X, y, HUD_FONT_SIZE);
+        }
 
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+        hud_set_palette_color(e->color);
+        draw_text(e->name, HUD_LEFT_X, y, HUD_FONT_SIZE);
+        row++;
+    }
+}
 
-    draw_text("A:SELECT ALL", -0.94f, 0.10f, font_size);
-    draw_text("X:INV SELECT", -0.94f, 0.05f, font_size);
+// Columna derecha: tabla "ETIQUETA: valor"
+static void hud_draw_counters(const uint8_t *map_ptr, const HudEntry *entries, size_t count)
+{
+    char buffer[64];
+    int row = 0;
 
-    draw_text("Z:VIEW ZONE",  -0.94f, -0.05f, font_size);
-    glColor4f(palette[VAL_ZONE_DMA][0], palette[VAL_ZONE_DMA][1], palette[VAL_ZONE_DMA][2], palette[VAL_ZONE_DMA][3]);
-    draw_text("  DMA", -0.94f, -0.10f, font_size);
-    glColor4f(palette[VAL_ZONE_DMA32][0], palette[VAL_ZONE_DMA32][1], palette[VAL_ZONE_DMA32][2], palette[VAL_ZONE_DMA32][3]);
-    draw_text("  DMA32", -0.94f, -0.15f, font_size);
-    glColor4f(palette[VAL_ZONE_NORMAL][0], palette[VAL_ZONE_NORMAL][1], palette[VAL_ZONE_NORMAL][2], palette[VAL_ZONE_NORMAL][3]);
-    draw_text("  NORMAL", -0.94f, -0.20f, font_size);
+    for (size_t i = 0; i < count; i++) {
+        const HudEntry *e = &entries[i];
+        row += e->gap_before;
+        float y = HUD_COUNTER_Y - row * HUD_ROW_STEP;
 
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+        hud_set_palette_color(e->color);
+        draw_text(e->counter_label, HUD_COUNTER_LABEL_X, y, HUD_FONT_SIZE);
 
-    draw_text("S:VIEW STATE", -0.94f, -0.30f, font_size);
-    glColor4f(palette[VAL_WRITEBACK][0], palette[VAL_WRITEBACK][1], palette[VAL_WRITEBACK][2], palette[VAL_WRITEBACK][3]);
-    draw_text("  WRITEBACK", -0.94f, -0.35f, font_size);
-    glColor4f(palette[VAL_DIRTY][0], palette[VAL_DIRTY][1], palette[VAL_DIRTY][2], palette[VAL_DIRTY][3]);
-    draw_text("  DIRTY", -0.94f, -0.40f, font_size);
+        hud_set_text_color();
+        snprintf(buffer, sizeof(buffer), "%lu",
+                 (unsigned long)hud_read_counter(map_ptr, e->counter_index));
+        draw_text(buffer, HUD_COUNTER_VALUE_X, y, HUD_FONT_SIZE);
+        row++;
+    }
+}
 
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+// Ayuda de selección: solo tiene sentido en el modo USE
+static void hud_draw_selection_help(void)
+{
+    hud_set_text_color();
+    draw_text("A:SELECT ALL", HUD_LEFT_X, 0.05f, HUD_FONT_SIZE);
+    draw_text("X:INV SELECT", HUD_LEFT_X, 0.00f, HUD_FONT_SIZE);
+}
 
-    draw_text("E:MORE ZOOM", -0.94f, -0.60f, font_size);
-    draw_text("D:LESS ZOOM", -0.94f, -0.65f, font_size);
-    draw_text("ARROW:MOVE", -0.94f, -0.70f, font_size);
-    draw_text("R:RESET VIEW", -0.94f, -0.75f, font_size);
+// Atajos de teclado en la parte inferior izquierda
+static void hud_draw_key_help(void)
+{
+    hud_set_text_color();
 
-    if (CAPT_VIDEO == 0) draw_text("F:FULL SCREEN ", -0.94f, -0.85f, font_size);
-    draw_text("Q:QUIT ", -0.94f, -0.90f, font_size);
+    for (size_t i = 0; i < ARRAY_LEN(HUD_HELP_LINES); i++)
+        draw_text(HUD_HELP_LINES[i].text, HUD_LEFT_X, HUD_HELP_LINES[i].y, HUD_FONT_SIZE);
 
-    // CUADRADO DERECHO
+    if (CAPT_VIDEO == 0)
+        draw_text("F:FULL SCREEN", HUD_LEFT_X, -0.85f, HUD_FONT_SIZE);
+    draw_text("Q:QUIT", HUD_LEFT_X, -0.90f, HUD_FONT_SIZE);
+}
 
-    // Rango X: 0.98 hasta 0.6
-    glColor4f(0.1f, 0.1f, 0.1f, 0.9f);
-    glBegin(GL_QUADS);
-    glVertex2f(0.98f, 0.50f);
-    glVertex2f(0.60f, 0.50f);
-    glVertex2f(0.60f, 0.90f);
-    glVertex2f(0.98f, 0.90f);
-    glEnd();
+// KUPS, FPS y estado de grabación (parte inferior derecha)
+static void hud_draw_stats(uint8_t kups, double fps)
+{
+    char buffer[64];
 
-    // Borde
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glLineWidth(2.0f);
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(0.98f, 0.50f);
-    glVertex2f(0.60f, 0.50f);
-    glVertex2f(0.60f, 0.90f);
-    glVertex2f(0.98f, 0.90f);
-    glEnd();
-
-    // Texto
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0f); //BLANCO
+    hud_set_text_color();
 
     snprintf(buffer, sizeof(buffer), "KUPS: %d", kups);
-    draw_text(buffer, 0.65f, 0.80f, font_size);
+    draw_text(buffer, HUD_STATS_X, -0.75f, HUD_FONT_SIZE);
 
     snprintf(buffer, sizeof(buffer), "FPS: %.1f", fps);
-    draw_text(buffer, 0.65f, 0.75f, font_size);
+    draw_text(buffer, HUD_STATS_X, -0.80f, HUD_FONT_SIZE);
 
-    #if CAPT_VIDEO
-        snprintf(buffer, sizeof(buffer), "REC [%d FPS]", TARGET_FPS);
-        draw_text(buffer, 0.65f, 0.65f, font_size);
-    #else
-        draw_text("NO REC", 0.65f, 0.65f, font_size);
-    #endif
+#if CAPT_VIDEO
+    snprintf(buffer, sizeof(buffer), "REC [%d FPS]", TARGET_FPS);
+    draw_text(buffer, HUD_STATS_X, -0.90f, HUD_FONT_SIZE);
+#else
+    draw_text("NO REC", HUD_STATS_X, -0.90f, HUD_FONT_SIZE);
+#endif
+}
 
-    #endif
+#endif // Fin !FORCE_WIN_TEXTURE
+
+
+void show_hud(uint8_t *map_ptr, double fps)
+{
+#if FORCE_WIN_TEXTURE
+    (void)map_ptr;
+    (void)fps;
+#else
+    const HudMode mode = hud_get_mode(map_ptr);
+    const HudEntry *entries;
+    size_t count;
+    hud_get_entries(mode, &entries, &count);
+
+    hud_begin_2d();
+
+    hud_draw_panel(-HUD_PANEL_OUTER, -HUD_PANEL_INNER);  // izquierdo
+    hud_draw_panel( HUD_PANEL_OUTER,  HUD_PANEL_INNER);  // derecho
+
+    hud_draw_header(mode);
+
+    uint16_t current_view = 0;
+    if (mode == HUD_MODE_USE)
+        memcpy(&current_view, &map_ptr[INDEX_VIEW], sizeof(current_view));
+
+    hud_draw_legend(entries, count, current_view);
+    if (mode == HUD_MODE_USE)
+        hud_draw_selection_help();
+    hud_draw_counters(map_ptr, entries, count);
+
+    hud_draw_key_help();
+    hud_draw_stats(map_ptr[INDEX_KUPS], fps);
+#endif
 }
