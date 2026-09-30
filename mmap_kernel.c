@@ -114,16 +114,26 @@ static inline void calculate_values_use(struct mmap_info *info)
 
         struct folio *folio = pfn_folio(pfn);
 
-        unsigned int refcount = folio_ref_count(folio);
-        bool is_slab = folio_test_slab(folio);
+        if (folio_test_buddy(folio)) {
+            struct page *page = pfn_to_page(pfn);
+            unsigned int order = page_private(page);
+            unsigned long nr_pages = 1UL << order;
+            unsigned long end_pfn = pfn + nr_pages;
 
-        if (refcount == 0 && !is_slab) {
-            if (view_page & MASK_FREE) {
-                out[pos] = VAL_FREE;
-                cont_free++;
-                continue;
+            while (i < count && pfns[i] < end_pfn) {
+                pos = poss[i];
+                if (view_page & MASK_FREE) {
+                    out[pos] = VAL_FREE;
+                    cont_free++;
+                } else {
+                    out[pos] = VAL_UNKN;
+                }
+                if (i + 1 < count && pfns[i + 1] < end_pfn) {
+                    i++;
+                } else {
+                    break;
+                }
             }
-            out[pos] = VAL_UNKN;
             continue;
         }
         if (folio_test_reserved(folio)) {
@@ -133,7 +143,7 @@ static inline void calculate_values_use(struct mmap_info *info)
                 continue;
             }
         }
-        if (is_slab) {
+        if (folio_test_slab(folio)) {
             if (view_page & MASK_SLAB) {
                 out[pos] = VAL_SLAB;
                 cont_slab++;
@@ -197,7 +207,7 @@ static inline void calculate_values_use(struct mmap_info *info)
                 continue;
             }
         }
-        if ((refcount > 0 || is_slab) && !folio_test_lru(folio) && !folio_mapped(folio)) {
+        if (!folio_test_lru(folio) && !folio_mapped(folio)) {
             if (view_page & MASK_KERN) {
                 out[pos] = VAL_KERN;
                 cont_kern++;

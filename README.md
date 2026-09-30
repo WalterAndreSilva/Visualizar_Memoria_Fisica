@@ -17,10 +17,10 @@ Una vez que cada página es clasificada, la información se envía al espacio de
 - **R**: Resetear posicion y zoom.
 - **I** o **ESC**: Mostrar la información de las páginas.
 - **Q**: Cerrar aplicacion.
-- **0-8**: Mostrar u ocultar la categoría de la página.
+- **0-9**: Mostrar u ocultar la categoría de la página.
 - **U**: Usuario
 - **K**: Kernel
-- **A**: Seleccionar todas las páginas o ninguna.
+- **A**: Seleccionar todas las páginas en vista de uso.
 - **X**: Invertir la selección actual.
 - **Z**: Alternar entre la vistas y a que zona pertenece.
 - **S**: Mostrar estado de la página.
@@ -35,29 +35,29 @@ Cuando se compila el programa con la opcion de forzar tamaño de ventana a la de
  
 - Rojo (VOID): Representa los páginas reservadas por la BIOS.
 
+- Verde claro (FREE): Páginas manejadas por el Buddy Allocator y están disponibles para ser asignadas.
+
 - Azul (RESE): Páginas reservadas exclusivamente por el Kernel. Incluye la imagen binaria del kernel y sus estructuras esenciales.
 
 - Verde azulado (SLAB): Paginas utilizadas por el gestor de memoria Slab.
 
 - Verde oscuro (PGTB): Páginas destinadas al almacenamiento de las Page Tables (tablas de páginas), necesarias para la traducción de direcciones.
 
-- Azul cielo (HUGE): Páginas gigantes manejadas por el kernel generalmente. Requiere root y no se puede partir.
+- Azul cielo (HUGE): Páginas gigantes manejadas por el kernel generalmente.
 
-- Rosa (THP): Transparent Huge Pages. Se pueden solicitar con madvise(). Son mas grande que 2MB (orden 9 -> 2^9 = 512 paginas * 4KB = 2MB)
+- Rosa (THP): Transparent Huge Pages. Son mas grande que 2MB (orden 9 -> 2^9 = 512 paginas * 4KB = 2MB)
 
-- Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar Huge Pages. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
+- Amarillo (COMP): Páginas compuestas (Compound Pages) utilizadas para gestionar bloques de mas de dos páginas. Incluye tanto Transparent Huge Pages (THP) como hugetlbfs.
 
-- Durazno (ACTI): Representa una página que ha sido accedida recientemente y que el sistema prioriza mantener en la RAM, evitando que sea movida al swap.
+- Durazno (ACTI): Representa una página que ha sido accedida recientemente y que el sistema prioriza mantener en la RAM, evitando que sea movida al Swap.
 
 - Naranja (FILE): Páginas de caché utilizadas para el mapeo de archivos desde el almacenamiento hacia la RAM.
 
 - Violeta (ANON): Páginas de memoria anónima. Son aquellas utilizadas por procesos en User Space para almacenar datos dinámicos (como el stack y el heap).
 
-- Marrón (USER): Páginas referenciadas por tablas de procesos en User Space que no entran en la categoría de anónimas ni están vinculadas a archivos.
+- Marrón (USER): Páginas referenciadas por tablas de procesos en User Space.
 
-- Verde claro (FREE): Páginas que no tienen referencias activas y están disponibles para ser asignadas.
-
-- Magenta (KERN): Hay páginas que no entran en ninguna de las categorías anteriores y el kernel las utiliza para realizar otras tareas.
+- Magenta (KERN): Como es difícil de determinar esta categoría, se decidió incluir las páginas que no están libres, no están en la LRU y no están mapeadas por alguna tabla de procesos del User Space.
 
 Al desactivar una categoría, se puede observar a qué otra categoría pertenece la página.
 
