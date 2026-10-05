@@ -11,7 +11,7 @@
 #include <sys/mman.h>
 
 #define BLOCK_SIZE (1 * 1024 * 1024)                // Bloques MB
-#define MAX_ALLOCATE (4ULL * 1024 * 1024 *1024)     // GB
+#define MAX_ALLOCATE (1ULL * 1024 * 1024 *1024)     // GB
 #define MAX_BLOCKS (MAX_ALLOCATE / BLOCK_SIZE + 1)  // Tamaño máximo del arreglo de punteros
 
 int main() {
@@ -43,8 +43,8 @@ int main() {
         printf("\rConsumo actual: %zu MB", total_allocated / (1024 * 1024));
     }
 
-    printf("\nPAGINAS ANONIMAS: Presiona Enter para liberar y salir...");
-    getchar();
+    printf("\nPAGINAS ANONIMAS: Esperando 3 segundos antes de liberar...\n");
+    sleep(3);
 
     // Liberar la memoria iterando sobre los punteros guardados
     for (int i = 0; i < block_count; i++) {
